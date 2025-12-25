@@ -133,11 +133,12 @@ export const generateFitnessPlan = async (
       }
     });
 
-    let text = response.text;
-    if (!text) throw new Error("No response from AI");
-
-    text = text.replace(/^```json\s*/, "").replace(/^```\s*/, "").replace(/\s*```$/, "");
-
+    let text = response.text || "{}";
+    
+    // Cleanup markdown if present
+    text = text.trim();
+    text = text.replace(/^```json/i, "").replace(/^```/i, "").replace(/```$/i, "");
+    
     return JSON.parse(text) as FitnessPlan;
   } catch (error: any) {
     console.error("Gemini API Error:", error);
@@ -158,12 +159,11 @@ export const regenerateCheapDietPlan = async (user: UserProfile): Promise<DailyD
     Buat ulang HANYA rencana diet/makan selama 7 hari (Senin-Minggu) untuk:
     ${user.name}, Tujuan: ${user.goal}, Berat: ${user.weight}kg.
 
-    INSTRUKSI KHUSUS (LOW BUDGET):
-    1. Menu HARUS MURAH & MUDAH didapat di Indonesia (Warteg/Pasar/Anak Kos).
-    2. Gunakan bahan seperti: Telur, Tahu, Tempe, Sayuran Lokal, Ayam (sesekali).
-    3. Hindari bahan mahal/import.
-    4. Format output HARUS JSON ARRAY [ {dayNumber: 1...}, {dayNumber: 2...} ].
-    5. Jangan bungkus dengan objek lain.
+    INSTRUKSI KHUSUS (LOW BUDGET & MUDAH DIDAPAT):
+    1. Menu HARUS SANGAT MURAH & MUDAH didapat di Indonesia (Warteg/Pasar Tradisional/Anak Kos Friendly).
+    2. Gunakan bahan lokal murah: Telur, Tahu, Tempe, Sayur Bayam/Kangkung, Pepaya, Pisang, Dada Ayam (porsi hemat).
+    3. Hindari bahan impor atau mahal (seperti Salmon, Beef Steak, Quinoa, Asparagus).
+    4. Format output HARUS JSON ARRAY murni.
   `;
 
   try {
@@ -176,19 +176,26 @@ export const regenerateCheapDietPlan = async (user: UserProfile): Promise<DailyD
       }
     });
 
-    let text = response.text;
-    if (!text) throw new Error("No response from AI");
+    let text = response.text || "[]";
     
-    // Cleanup markdown formatting if any
+    // Cleanup markdown formatting aggressively
     text = text.trim();
     if (text.startsWith("```json")) text = text.slice(7);
-    if (text.startsWith("```")) text = text.slice(3);
+    else if (text.startsWith("```")) text = text.slice(3);
+    
     if (text.endsWith("```")) text = text.slice(0, -3);
+    
     text = text.trim();
 
-    return JSON.parse(text) as DailyDiet[];
+    const result = JSON.parse(text) as DailyDiet[];
+    
+    if (!Array.isArray(result)) {
+      throw new Error("Format respon AI tidak valid (bukan array).");
+    }
+    
+    return result;
   } catch (error: any) {
     console.error("Gemini API Error (Diet Only):", error);
-    throw new Error("Gagal membuat menu murah.");
+    throw new Error("Gagal membuat menu murah. Coba lagi.");
   }
 };

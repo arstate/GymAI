@@ -87,7 +87,10 @@ const App: React.FC = () => {
   const handleRegenerateDiet = async () => {
     if (!userProfile || !fitnessPlan) return;
     
-    if (!window.confirm("Yakin ingin mengganti menu saat ini dengan menu Hemat & Praktis? Menu lama akan hilang.")) return;
+    // Konfirmasi sebelum mengganti menu
+    if (!window.confirm("Apakah Anda yakin ingin mengganti menu saat ini dengan menu yang LEBIH MURAH & MUDAH? Menu yang lama akan hilang.")) {
+      return;
+    }
 
     setIsRegeneratingDiet(true);
     setError(null);
@@ -95,7 +98,7 @@ const App: React.FC = () => {
       const newDiet = await regenerateCheapDietPlan(userProfile);
       
       if (!newDiet || newDiet.length === 0) {
-        throw new Error("Gagal menerima data menu baru.");
+        throw new Error("Gagal menerima data menu baru dari AI.");
       }
 
       const updatedPlan = {
@@ -105,10 +108,10 @@ const App: React.FC = () => {
 
       setFitnessPlan(updatedPlan);
       saveToStorage(userProfile, updatedPlan);
-      alert("Menu berhasil diganti ke mode Hemat & Praktis!");
+      alert("Berhasil! Menu makanan telah diganti dengan opsi yang lebih hemat.");
     } catch (err: any) {
       console.error("Regenerate Diet Error:", err);
-      alert("Gagal mengganti menu. Pastikan koneksi internet lancar.");
+      alert("Gagal mengganti menu: " + (err.message || "Terjadi kesalahan koneksi."));
     } finally {
       setIsRegeneratingDiet(false);
     }
@@ -145,14 +148,16 @@ const App: React.FC = () => {
   };
 
   const handleFinishWeek = () => {
-    // Tambahkan konfirmasi agar tidak salah pencet
-    if (window.confirm("Apakah Anda yakin sudah menyelesaikan minggu ini? Anda akan diarahkan ke evaluasi mingguan dan tidak bisa kembali ke jadwal minggu ini.")) {
+    // NOTIFIKASI / KONFIRMASI AGAR TIDAK SALAH PENCET
+    const confirmMsg = `Apakah Anda yakin sudah menyelesaikan SELURUH latihan Minggu ${fitnessPlan?.weekNumber}?\n\nAnda akan lanjut ke evaluasi mingguan dan tidak bisa kembali ke jadwal minggu ini.`;
+    
+    if (window.confirm(confirmMsg)) {
       setView('WEEKLY_CHECKIN');
     }
   };
 
   const handleReset = () => {
-    if (window.confirm("PERINGATAN: Apakah Anda yakin ingin menghapus semua data, profil, dan rencana latihan?")) {
+    if (window.confirm("PERINGATAN KERAS: Apakah Anda yakin ingin MENGHAPUS SEMUA data profil dan rencana latihan? Tindakan ini tidak bisa dibatalkan.")) {
       localStorage.removeItem(STORAGE_KEY);
       setUserProfile(null);
       setFitnessPlan(null);
