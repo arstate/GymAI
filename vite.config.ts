@@ -33,6 +33,9 @@ export default defineConfig({
       }
     })
   ],
+  define: {
+    'process.env.API_KEY': JSON.stringify("AIzaSyDIH0xyZyFqlqJ5WBUkFwQQxO8zdKDcxyg")
+  },
   build: {
     outDir: 'dist',
   },
