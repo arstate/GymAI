@@ -34,7 +34,13 @@ export default defineConfig({
     })
   ],
   define: {
-    'process.env.API_KEY': JSON.stringify("AIzaSyDIH0xyZyFqlqJ5WBUkFwQQxO8zdKDcxyg")
+    // Menyimpan daftar API Key untuk rotasi otomatis
+    'process.env.API_KEYS': JSON.stringify([
+      "AIzaSyDIH0xyZyFqlqJ5WBUkFwQQxO8zdKDcxyg",
+      "AIzaSyDixFiE3KbwMdqC6V3qvMzO9gkoUDdQDrI",
+      "AIzaSyAdJzHJ5hOptBYTRyv-PRv1xnvvHJuQN-Q",
+      "AIzaSyAPAbp5MuljFR1eyAcXx-zQqF4YE9XRTCs"
+    ])
   },
   build: {
     outDir: 'dist',

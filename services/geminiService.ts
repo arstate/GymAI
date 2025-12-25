@@ -1,7 +1,45 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { UserProfile, FitnessPlan, WeeklyFeedback, DailyDiet } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+// Ambil list API Keys dari environment (di-inject via vite.config.ts)
+const API_KEYS: string[] = (process.env.API_KEYS as any) || [];
+let currentKeyIndex = 0;
+
+// Fungsi helper untuk mendapatkan instance client dengan key yang sedang aktif
+const getClient = () => {
+  if (API_KEYS.length === 0) throw new Error("Tidak ada API Key yang dikonfigurasi.");
+  // Pastikan index valid
+  if (currentKeyIndex >= API_KEYS.length) currentKeyIndex = 0;
+  
+  const key = API_KEYS[currentKeyIndex];
+  return new GoogleGenAI({ apiKey: key });
+};
+
+// Fungsi Wrapper untuk Rotasi Key Otomatis
+// Mencoba menjalankan operasi AI, jika gagal, ganti key dan coba lagi
+async function executeWithRotation<T>(operation: (ai: GoogleGenAI) => Promise<T>): Promise<T> {
+  let lastError: any = null;
+
+  // Loop sebanyak jumlah key yang tersedia
+  for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
+    try {
+      const client = getClient();
+      // Jalankan request
+      return await operation(client);
+    } catch (error: any) {
+      lastError = error;
+      console.warn(`API Key ke-${currentKeyIndex + 1} gagal:`, error.message);
+
+      // Pindah ke key berikutnya
+      currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
+      console.log(`Mengalihkan ke API Key index ${currentKeyIndex}...`);
+    }
+  }
+
+  // Jika semua key sudah dicoba dan gagal
+  console.error("Semua API Key gagal digunakan.");
+  throw new Error(lastError?.message || "Gagal menghubungi layanan AI dengan semua API Key yang tersedia.");
+}
 
 const exerciseSchema: Schema = {
   type: Type.OBJECT,
@@ -123,7 +161,7 @@ export const generateFitnessPlan = async (
     5. Gunakan format JSON raw.
   `;
 
-  try {
+  return executeWithRotation(async (ai) => {
     const response = await ai.models.generateContent({
       model: model,
       contents: prompt,
@@ -140,10 +178,7 @@ export const generateFitnessPlan = async (
     text = text.replace(/^```json/i, "").replace(/^```/i, "").replace(/```$/i, "");
     
     return JSON.parse(text) as FitnessPlan;
-  } catch (error: any) {
-    console.error("Gemini API Error:", error);
-    throw new Error(error.message || "Gagal membuat rencana.");
-  }
+  });
 };
 
 export const regenerateCheapDietPlan = async (user: UserProfile): Promise<DailyDiet[]> => {
@@ -166,7 +201,7 @@ export const regenerateCheapDietPlan = async (user: UserProfile): Promise<DailyD
     4. Format output HARUS JSON ARRAY murni.
   `;
 
-  try {
+  return executeWithRotation(async (ai) => {
     const response = await ai.models.generateContent({
       model: model,
       contents: prompt,
@@ -194,8 +229,5 @@ export const regenerateCheapDietPlan = async (user: UserProfile): Promise<DailyD
     }
     
     return result;
-  } catch (error: any) {
-    console.error("Gemini API Error (Diet Only):", error);
-    throw new Error("Gagal membuat menu murah. Coba lagi.");
-  }
+  });
 };
