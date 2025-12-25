@@ -16,6 +16,9 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRegeneratingDiet, setIsRegeneratingDiet] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // PWA Install State
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
 
   useEffect(() => {
     // Load local storage on mount
@@ -33,7 +36,30 @@ const App: React.FC = () => {
         localStorage.removeItem(STORAGE_KEY);
       }
     }
+
+    // PWA Install Listener
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
   }, []);
+
+  const handleInstallClick = () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    installPrompt.userChoice.then((choiceResult: any) => {
+      if (choiceResult.outcome === 'accepted') {
+        console.log('User accepted the install prompt');
+      }
+      setInstallPrompt(null);
+    });
+  };
 
   const saveToStorage = (profile: UserProfile, plan: FitnessPlan) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -180,6 +206,17 @@ const App: React.FC = () => {
               {error}
             </div>
           )}
+          {/* Install Button for Onboarding */}
+          {installPrompt && (
+            <div className="fixed bottom-4 left-0 right-0 flex justify-center z-50 animate-fade-in">
+              <button 
+                onClick={handleInstallClick}
+                className="bg-gray-900 text-white px-6 py-3 rounded-full shadow-xl font-bold flex items-center gap-2"
+              >
+                📲 Install Aplikasi
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -192,6 +229,8 @@ const App: React.FC = () => {
           onFinishWeek={handleFinishWeek}
           onRegenerateDiet={handleRegenerateDiet}
           isRegeneratingDiet={isRegeneratingDiet}
+          installPrompt={installPrompt}
+          onInstallApp={handleInstallClick}
         />
       )}
 

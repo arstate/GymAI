@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FitnessPlan, DailyRoutine, UserProfile } from '../types';
-import { Play, Utensils, Calendar, Clock, Award, Info, CheckCircle, ChevronRight, Moon, Lock, RefreshCw, DollarSign } from 'lucide-react';
+import { Play, Utensils, Calendar, Clock, Award, Info, CheckCircle, ChevronRight, Moon, Lock, RefreshCw, DollarSign, Download } from 'lucide-react';
 
 interface Props {
   plan: FitnessPlan;
@@ -10,6 +10,8 @@ interface Props {
   onFinishWeek: () => void;
   onRegenerateDiet: () => void;
   isRegeneratingDiet: boolean;
+  installPrompt: any;
+  onInstallApp: () => void;
 }
 
 const Dashboard: React.FC<Props> = ({ 
@@ -19,7 +21,9 @@ const Dashboard: React.FC<Props> = ({
   onReset, 
   onFinishWeek,
   onRegenerateDiet,
-  isRegeneratingDiet
+  isRegeneratingDiet,
+  installPrompt,
+  onInstallApp
 }) => {
   const [activeTab, setActiveTab] = useState<'workout' | 'diet'>('workout');
   const [selectedDay, setSelectedDay] = useState<number>(1); // 1-7
@@ -33,14 +37,24 @@ const Dashboard: React.FC<Props> = ({
 
   return (
     <div className="max-w-4xl mx-auto p-4 pb-32">
-      <header className="flex justify-between items-center mb-6 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Minggu Ke-{plan.weekNumber}</h1>
           <p className="text-gray-500 text-sm mt-1">Halo {user.name}, semangat berproses!</p>
         </div>
-        <div className="flex flex-col items-end">
-             <div className="bg-primary-50 px-4 py-2 rounded-full text-primary-700 font-bold text-sm mb-1">
-               {user.goal}
+        <div className="flex flex-col items-end w-full md:w-auto">
+             <div className="flex gap-2 items-center mb-1">
+                {installPrompt && (
+                  <button 
+                    onClick={onInstallApp}
+                    className="bg-gray-900 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 hover:bg-gray-700 transition"
+                  >
+                    <Download className="w-3 h-3" /> Install App
+                  </button>
+                )}
+                <div className="bg-primary-50 px-4 py-2 rounded-full text-primary-700 font-bold text-sm">
+                  {user.goal}
+                </div>
              </div>
              <div className="text-xs text-gray-400">Berat Awal: {user.weight}kg</div>
         </div>
