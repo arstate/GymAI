@@ -108,7 +108,7 @@ const App: React.FC = () => {
     } catch (err: any) {
       const msg = err.message || "Gagal menghasilkan rencana.";
       setError(msg);
-      openAlert("Kesalahan API", msg);
+      openAlert("Kesalahan API", "Gagal memanggil AI. Pastikan Environment Variable 'API_KEY' sudah benar di Vercel.");
     } finally {
       setIsLoading(false);
     }
