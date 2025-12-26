@@ -50,10 +50,10 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white rounded-3xl shadow-xl mt-10">
+    <div className="max-w-2xl mx-auto p-6 bg-white rounded-3xl shadow-xl mt-4 md:mt-10 overflow-y-auto max-h-[90vh]">
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold text-gray-800">
+          <h2 className="text-xl md:text-2xl font-bold text-gray-800">
             {step === 1 && "Data Diri & Target"}
             {step === 2 && "Tujuan Utama"}
             {step === 3 && "Peralatan Gym"}
@@ -70,7 +70,7 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
         </div>
       </div>
 
-      <div className="min-h-[400px]">
+      <div className="min-h-[350px]">
         {step === 1 && (
           <div className="space-y-6 animate-fade-in">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -104,33 +104,32 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
                 onClick={() => updateField('gender', Gender.MALE)}
                 className={`p-4 border-2 rounded-2xl transition-all flex flex-col items-center ${formData.gender === Gender.MALE ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-50 bg-gray-50 text-gray-400 hover:border-gray-200'}`}
               >
-                <span className="text-3xl mb-2">👨</span>
-                <span className="font-bold">Laki-laki</span>
+                <span className="text-2xl md:text-3xl mb-1 md:mb-2">👨</span>
+                <span className="font-bold text-sm">Laki-laki</span>
               </button>
               <button 
                 onClick={() => updateField('gender', Gender.FEMALE)}
                 className={`p-4 border-2 rounded-2xl transition-all flex flex-col items-center ${formData.gender === Gender.FEMALE ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-50 bg-gray-50 text-gray-400 hover:border-gray-200'}`}
               >
-                <span className="text-3xl mb-2">👩</span>
-                <span className="font-bold">Perempuan</span>
+                <span className="text-2xl md:text-3xl mb-1 md:mb-2">👩</span>
+                <span className="font-bold text-sm">Perempuan</span>
               </button>
             </div>
 
             <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase mb-2 flex items-center gap-2">
-                  <Ruler className="w-4 h-4" /> Tinggi Badan (cm)
-                </label>
-                <input 
-                  type="number" 
-                  className="w-full px-4 py-3 border border-gray-100 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition"
-                  placeholder="170"
-                  value={formData.height || ''}
-                  onChange={e => updateField('height', parseInt(e.target.value))}
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-1">
+                  <label className="block text-xs font-bold text-gray-400 uppercase mb-2 flex items-center gap-2">
+                    <Ruler className="w-4 h-4" /> Tinggi (cm)
+                  </label>
+                  <input 
+                    type="number" 
+                    className="w-full px-4 py-3 border border-gray-100 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition"
+                    placeholder="170"
+                    value={formData.height || ''}
+                    onChange={e => updateField('height', parseInt(e.target.value))}
+                  />
+                </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-400 uppercase mb-2">BB Sekarang (kg)</label>
                   <input 
@@ -143,7 +142,7 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-primary-500 uppercase mb-2 flex items-center gap-1">
-                    <Target className="w-3 h-3" /> Target Berat (kg)
+                    <Target className="w-3 h-3" /> Target BB (kg)
                   </label>
                   <input 
                     type="number" 
@@ -161,15 +160,15 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
         {step === 2 && (
           <div className="space-y-3 animate-fade-in">
             <p className="text-gray-500 text-sm mb-4">Pilih satu atau buat tujuan kustom Anda sendiri.</p>
-            <div className="grid grid-cols-1 gap-2 max-h-[280px] overflow-y-auto pr-2 no-scrollbar">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[250px] overflow-y-auto pr-2 no-scrollbar">
               {Object.values(Goal).map((goal) => (
                 <button 
                   key={goal}
                   onClick={() => updateField('goal', goal)}
                   className={`w-full p-4 border-2 rounded-2xl flex items-center justify-between transition-all ${formData.goal === goal ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-50 bg-gray-50 text-gray-600 hover:border-gray-200'}`}
                 >
-                  <span className="font-bold text-sm">{goal}</span>
-                  {formData.goal === goal && <div className="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center"><Check className="w-4 h-4 text-white" /></div>}
+                  <span className="font-bold text-sm text-left">{goal}</span>
+                  {formData.goal === goal && <div className="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center flex-shrink-0 ml-2"><Check className="w-4 h-4 text-white" /></div>}
                 </button>
               ))}
             </div>
@@ -182,7 +181,7 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
                 <input 
                   type="text"
                   className="w-full px-4 py-4 border-2 border-primary-300 bg-white rounded-2xl shadow-inner focus:ring-4 focus:ring-primary-100 outline-none transition"
-                  placeholder="Contoh: Turun 5kg dalam sebulan, Ingin Sixpack..."
+                  placeholder="Contoh: Turun 5kg dalam sebulan..."
                   value={customGoal}
                   onChange={e => setCustomGoal(e.target.value)}
                   autoFocus
@@ -202,8 +201,8 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
                   onClick={() => toggleEquipment(eq)}
                   className={`p-4 border-2 rounded-2xl flex items-center justify-between transition-all ${formData.equipment?.includes(eq) ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-50 bg-gray-50 text-gray-600 hover:border-gray-200'}`}
                 >
-                  <span className="text-sm font-bold">{eq}</span>
-                  {formData.equipment?.includes(eq) && <div className="w-5 h-5 bg-primary-500 rounded-full flex items-center justify-center"><Check className="w-3 h-3 text-white" /></div>}
+                  <span className="text-sm font-bold text-left">{eq}</span>
+                  {formData.equipment?.includes(eq) && <div className="w-5 h-5 bg-primary-500 rounded-full flex items-center justify-center flex-shrink-0 ml-2"><Check className="w-3 h-3 text-white" /></div>}
                 </button>
               ))}
             </div>
@@ -212,38 +211,37 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
 
         {step === 4 && (
           <div className="space-y-4 animate-fade-in">
-            <p className="text-gray-500 text-sm mb-4">Berapa budget harian Anda untuk makan sehat?</p>
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <button 
                 onClick={() => updateField('dietBudget', DietBudget.CHEAP)}
-                className={`w-full p-5 border-2 rounded-2xl flex items-center gap-4 transition-all ${formData.dietBudget === DietBudget.CHEAP ? 'border-primary-500 bg-primary-50' : 'border-gray-50 bg-gray-50 hover:border-gray-200'}`}
+                className={`p-5 border-2 rounded-2xl flex flex-col items-center gap-2 transition-all ${formData.dietBudget === DietBudget.CHEAP ? 'border-primary-500 bg-primary-50' : 'border-gray-50 bg-gray-50 hover:border-gray-200'}`}
               >
                 <div className={`p-3 rounded-xl ${formData.dietBudget === DietBudget.CHEAP ? 'bg-primary-500 text-white' : 'bg-white text-gray-400'}`}><Wallet className="w-6 h-6" /></div>
-                <div className="text-left">
-                   <h4 className={`font-bold ${formData.dietBudget === DietBudget.CHEAP ? 'text-primary-700' : 'text-gray-700'}`}>Hemat / Murah</h4>
-                   <p className="text-xs text-gray-400">Pilihan ekonomis: Telur, Tempe, Tahu, Sayur lokal.</p>
+                <div className="text-center">
+                   <h4 className={`font-bold text-sm ${formData.dietBudget === DietBudget.CHEAP ? 'text-primary-700' : 'text-gray-700'}`}>Hemat</h4>
+                   <p className="text-[10px] text-gray-400">Telur, Tempe, Tahu.</p>
                 </div>
               </button>
               
               <button 
                 onClick={() => updateField('dietBudget', DietBudget.MEDIUM)}
-                className={`w-full p-5 border-2 rounded-2xl flex items-center gap-4 transition-all ${formData.dietBudget === DietBudget.MEDIUM ? 'border-primary-500 bg-primary-50' : 'border-gray-50 bg-gray-50 hover:border-gray-200'}`}
+                className={`p-5 border-2 rounded-2xl flex flex-col items-center gap-2 transition-all ${formData.dietBudget === DietBudget.MEDIUM ? 'border-primary-500 bg-primary-50' : 'border-gray-50 bg-gray-50 hover:border-gray-200'}`}
               >
                 <div className={`p-3 rounded-xl ${formData.dietBudget === DietBudget.MEDIUM ? 'bg-primary-500 text-white' : 'bg-white text-gray-400'}`}><CreditCard className="w-6 h-6" /></div>
-                <div className="text-left">
-                   <h4 className={`font-bold ${formData.dietBudget === DietBudget.MEDIUM ? 'text-primary-700' : 'text-gray-700'}`}>Sedang / Wajar</h4>
-                   <p className="text-xs text-gray-400">Nutrisi lengkap: Dada ayam, Ikan, Buah musiman.</p>
+                <div className="text-center">
+                   <h4 className={`font-bold text-sm ${formData.dietBudget === DietBudget.MEDIUM ? 'text-primary-700' : 'text-gray-700'}`}>Sedang</h4>
+                   <p className="text-[10px] text-gray-400">Dada ayam, Buah.</p>
                 </div>
               </button>
 
               <button 
                 onClick={() => updateField('dietBudget', DietBudget.EXPENSIVE)}
-                className={`w-full p-5 border-2 rounded-2xl flex items-center gap-4 transition-all ${formData.dietBudget === DietBudget.EXPENSIVE ? 'border-primary-500 bg-primary-50' : 'border-gray-50 bg-gray-50 hover:border-gray-200'}`}
+                className={`p-5 border-2 rounded-2xl flex flex-col items-center gap-2 transition-all ${formData.dietBudget === DietBudget.EXPENSIVE ? 'border-primary-500 bg-primary-50' : 'border-gray-50 bg-gray-50 hover:border-gray-200'}`}
               >
                 <div className={`p-3 rounded-xl ${formData.dietBudget === DietBudget.EXPENSIVE ? 'bg-primary-500 text-white' : 'bg-white text-gray-400'}`}><DollarSign className="w-6 h-6" /></div>
-                <div className="text-left">
-                   <h4 className={`font-bold ${formData.dietBudget === DietBudget.EXPENSIVE ? 'text-primary-700' : 'text-gray-700'}`}>Premium</h4>
-                   <p className="text-xs text-gray-400">Kualitas tinggi: Daging merah, Salmon, Salad premium.</p>
+                <div className="text-center">
+                   <h4 className={`font-bold text-sm ${formData.dietBudget === DietBudget.EXPENSIVE ? 'text-primary-700' : 'text-gray-700'}`}>Premium</h4>
+                   <p className="text-[10px] text-gray-400">Daging merah, Salmon.</p>
                 </div>
               </button>
             </div>
@@ -257,8 +255,8 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
                 <HeartPulse className="w-4 h-4 text-red-500" /> Riwayat Medis (Opsional)
               </label>
               <textarea 
-                className="w-full px-4 py-3 border border-gray-100 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none h-24 resize-none transition"
-                placeholder="Ada cedera lama atau penyakit tertentu?"
+                className="w-full px-4 py-3 border border-gray-100 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none h-20 resize-none transition"
+                placeholder="Ada cedera atau penyakit tertentu?"
                 value={formData.medicalHistory}
                 onChange={e => updateField('medicalHistory', e.target.value)}
               />
@@ -271,13 +269,13 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
               <div className={`w-6 h-6 rounded flex items-center justify-center border ${formData.isSmoker ? 'bg-orange-500 border-orange-500' : 'bg-white border-gray-300'}`}>
                 {formData.isSmoker && <Check className="w-4 h-4 text-white" />}
               </div>
-              <span className="font-medium text-sm">Saya seorang perokok aktif</span>
+              <span className="font-medium text-sm">Saya perokok aktif</span>
             </button>
           </div>
         )}
       </div>
 
-      <div className="mt-10 flex justify-between gap-4">
+      <div className="mt-8 flex justify-between gap-4">
         {step > 1 ? (
           <button 
             onClick={handleBack}
@@ -307,7 +305,7 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
                 <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
                 Menganalisa...
               </>
-            ) : "Buat Jadwal Saya"}
+            ) : "Buat Jadwal"}
           </button>
         )}
       </div>

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { DailyRoutine, Exercise } from '../types';
-import { ChevronRight, Clock, AlertCircle, CheckCircle, ArrowLeft, Play, Pause, RotateCcw, Volume2 } from 'lucide-react';
+import { ChevronRight, Clock, AlertCircle, CheckCircle, ArrowLeft, Play, Pause, RotateCcw } from 'lucide-react';
 
 interface Props {
   routine: DailyRoutine;
@@ -23,8 +23,7 @@ const WorkoutSession: React.FC<Props> = ({ routine, onExit, onComplete }) => {
 
   const currentExercise = routine.exercises[currentIndex];
   
-  // Latihan dianggap berbasis waktu (TIMER) jika durationSeconds ada DAN > 0.
-  // Prioritaskan timer jika durationSeconds tersedia.
+  // Latihan dianggap berbasis TIMER jika durationSeconds ada dan > 0
   const isTimedExercise = !!(currentExercise.durationSeconds && currentExercise.durationSeconds > 0);
 
   // Initialize Audio Context on first interaction
@@ -55,7 +54,6 @@ const WorkoutSession: React.FC<Props> = ({ routine, onExit, onComplete }) => {
     const now = ctx.currentTime;
     playBeep(now);
     playBeep(now + 0.6);
-    playBeep(now + 1.2);
   };
 
   // Timer logic for REST
@@ -89,15 +87,14 @@ const WorkoutSession: React.FC<Props> = ({ routine, onExit, onComplete }) => {
     } else if (exerciseTimer === 0 && isExerciseActive) {
       setIsExerciseActive(false);
       playAlarm();
-      // Delay sebentar agar user mendengar suara alarm sebelum pindah ke istirahat
       setTimeout(() => {
         handleExerciseComplete();
-      }, 1500);
+      }, 1000);
     }
     return () => clearInterval(interval);
   }, [isExerciseActive, exerciseTimer]);
 
-  // RESET TIMER SETIAP GANTI LATIHAN
+  // RESET TIMER SAAT GANTI LATIHAN
   useEffect(() => {
     setIsExerciseActive(false);
     if (isTimedExercise) {
@@ -142,14 +139,12 @@ const WorkoutSession: React.FC<Props> = ({ routine, onExit, onComplete }) => {
   if (isCompleted) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-primary-600 text-white text-center">
-        <div className="animate-bounce">
-          <CheckCircle className="w-24 h-24 mb-6" />
-        </div>
-        <h1 className="text-4xl font-bold mb-4">Latihan Selesai!</h1>
-        <p className="text-xl mb-8 opacity-90">Kerja bagus! Tubuh Anda akan berterima kasih besok.</p>
+        <CheckCircle className="w-20 h-20 mb-6 animate-bounce" />
+        <h1 className="text-3xl font-bold mb-4">Latihan Selesai!</h1>
+        <p className="text-lg mb-8 opacity-90">Program hari ini sudah tuntas.</p>
         <button 
           onClick={onComplete}
-          className="bg-white text-primary-600 px-8 py-3 rounded-full font-bold text-lg hover:bg-gray-100 transition shadow-xl"
+          className="bg-white text-primary-600 px-8 py-3 rounded-full font-bold shadow-xl"
         >
           Simpan Progres
         </button>
@@ -160,147 +155,140 @@ const WorkoutSession: React.FC<Props> = ({ routine, onExit, onComplete }) => {
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white overflow-hidden">
       {/* Header */}
-      <div className="p-4 flex items-center justify-between border-b border-gray-800 bg-gray-900/50 backdrop-blur-md z-10">
+      <div className="p-3 md:p-4 flex items-center justify-between border-b border-gray-800 bg-gray-900/50 backdrop-blur-md z-10 flex-shrink-0">
         <button onClick={onExit} className="p-2 hover:bg-gray-800 rounded-full transition">
-          <ArrowLeft className="w-6 h-6" />
+          <ArrowLeft className="w-5 h-5" />
         </button>
-        <div className="flex flex-col items-center">
-          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em]">Gerakan Aktif</span>
+        <div className="text-center">
+          <span className="text-[8px] font-bold text-gray-500 uppercase tracking-widest block">GERAKAN</span>
           <span className="font-bold text-sm text-primary-400">
             {currentIndex + 1} / {routine.exercises.length}
           </span>
         </div>
-        <div className="w-10"></div>
+        <div className="w-8"></div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center">
-        {isResting ? (
-          <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in text-center">
-            <div className="mb-8 relative">
-              <div className="w-48 h-48 rounded-full border-4 border-primary-500/20 flex items-center justify-center">
-                <div className="text-7xl font-black tabular-nums text-primary-400">{formatTime(timer)}</div>
+      {/* Content - Optimized for Landscape with Scroll */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-32">
+        <div className="max-w-4xl mx-auto">
+          {isResting ? (
+            <div className="flex flex-col items-center justify-center py-10 animate-fade-in">
+              <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-primary-500/20 flex items-center justify-center mb-6">
+                <div className="text-5xl md:text-7xl font-black tabular-nums text-primary-400">{formatTime(timer)}</div>
               </div>
-              <RotateCcw className="absolute -top-2 -right-2 text-gray-700 w-8 h-8 animate-spin-slow" />
+              <span className="text-primary-400 font-bold tracking-widest uppercase mb-2 text-xs">Istirahat</span>
+              <p className="text-gray-400 mb-6 text-sm">
+                Selanjutnya: <span className="text-white font-semibold">{routine.exercises[currentIndex + 1]?.name}</span>
+              </p>
+              <button 
+                onClick={skipRest}
+                className="px-8 py-3 bg-gray-800 rounded-2xl text-white font-bold hover:bg-gray-700 transition text-sm"
+              >
+                Lanjutkan
+              </button>
             </div>
-            <span className="text-primary-400 font-bold tracking-widest uppercase mb-2">Waktu Istirahat</span>
-            <p className="text-gray-400 mb-8 max-w-xs">
-              Tarik napas... Gerakan selanjutnya: <span className="text-white font-semibold block mt-1 text-lg">{routine.exercises[currentIndex + 1]?.name || "Selesai"}</span>
-            </p>
-            <button 
-              onClick={skipRest}
-              className="px-10 py-4 bg-gray-800 rounded-2xl text-white font-bold hover:bg-gray-700 transition active:scale-95"
-            >
-              Lanjutkan Sekarang
-            </button>
-          </div>
-        ) : (
-          <div className="w-full max-w-lg space-y-6 animate-fade-in pb-32">
-            <div className="aspect-video bg-gray-800 rounded-3xl flex items-center justify-center overflow-hidden relative shadow-2xl border border-gray-700">
-               <img 
-                 src={`https://picsum.photos/800/450?fitness,gym&random=${currentIndex}`} 
-                 alt="Workout" 
-                 className="w-full h-full object-cover opacity-40"
-               />
-               <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent"></div>
-               <div className="absolute bottom-6 left-6 right-6">
-                  <span className="text-3xl font-black text-white drop-shadow-lg">{currentExercise.name}</span>
-               </div>
-            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in items-start">
+              {/* Media Section */}
+              <div className="space-y-4">
+                <div className="aspect-video bg-gray-800 rounded-2xl md:rounded-3xl flex items-center justify-center overflow-hidden relative shadow-2xl border border-gray-700">
+                   <img 
+                     src={`https://picsum.photos/800/450?fitness,gym&random=${currentIndex}`} 
+                     alt="Workout" 
+                     className="w-full h-full object-cover opacity-40"
+                   />
+                   <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent"></div>
+                   <div className="absolute bottom-4 left-4 right-4">
+                      <span className="text-xl md:text-2xl font-black text-white">{currentExercise.name}</span>
+                   </div>
+                </div>
 
-            {/* UI Timer Khusus untuk Latihan Berbasis Waktu */}
-            {isTimedExercise && (
-              <div className="bg-gray-800/80 backdrop-blur-sm p-8 rounded-3xl border border-primary-500/30 text-center shadow-lg">
-                <div className={`text-8xl font-black tabular-nums mb-6 transition-colors duration-500 ${exerciseTimer <= 5 && exerciseTimer > 0 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
-                  {formatTime(exerciseTimer)}
-                </div>
-                
-                <div className="flex gap-4 justify-center">
-                  {!isExerciseActive ? (
-                    <button 
-                      onClick={startExerciseTimer}
-                      className="flex-1 max-w-[200px] py-4 bg-primary-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-primary-500 transition active:scale-95 shadow-lg"
-                    >
-                      <Play className="w-6 h-6 fill-current" /> {exerciseTimer === currentExercise.durationSeconds ? "Mulai" : "Lanjut"}
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={pauseExerciseTimer}
-                      className="flex-1 max-w-[200px] py-4 bg-orange-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-orange-500 transition active:scale-95 shadow-lg"
-                    >
-                      <Pause className="w-6 h-6 fill-current" /> Jeda
-                    </button>
-                  )}
-                  <button 
-                    onClick={() => setExerciseTimer(currentExercise.durationSeconds || 0)}
-                    className="p-4 bg-gray-700 text-gray-300 rounded-2xl hover:bg-gray-600 transition"
-                  >
-                    <RotateCcw className="w-6 h-6" />
-                  </button>
-                </div>
-                {isExerciseActive && (
-                   <p className="mt-4 text-xs text-primary-400 font-bold animate-pulse">
-                     Fokus! Alarm akan bunyi saat waktu habis.
-                   </p>
+                {/* Exercise Controls for Timed Workout */}
+                {isTimedExercise && (
+                  <div className="bg-gray-800/80 backdrop-blur-sm p-4 md:p-6 rounded-2xl border border-primary-500/30 text-center shadow-lg">
+                    <div className={`text-6xl md:text-7xl font-black tabular-nums mb-4 ${exerciseTimer <= 5 && isExerciseActive ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                      {formatTime(exerciseTimer)}
+                    </div>
+                    
+                    <div className="flex gap-2 justify-center">
+                      {!isExerciseActive ? (
+                        <button 
+                          onClick={startExerciseTimer}
+                          className="flex-1 max-w-[150px] py-3 bg-primary-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 text-sm"
+                        >
+                          <Play className="w-4 h-4 fill-current" /> {exerciseTimer === currentExercise.durationSeconds ? "Mulai" : "Lanjut"}
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={pauseExerciseTimer}
+                          className="flex-1 max-w-[150px] py-3 bg-orange-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 text-sm"
+                        >
+                          <Pause className="w-4 h-4 fill-current" /> Jeda
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => setExerciseTimer(currentExercise.durationSeconds || 0)}
+                        className="p-3 bg-gray-700 text-gray-300 rounded-xl"
+                      >
+                        <RotateCcw className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
-            )}
 
-            <div>
-              <div className="flex gap-4 mb-6">
-                <div className="bg-gray-800/50 p-4 rounded-2xl text-center flex-1 border border-gray-700/50">
-                  <span className="block text-3xl font-black text-primary-400">{currentExercise.sets}</span>
-                  <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Set</span>
-                </div>
-                <div className="bg-gray-800/50 p-4 rounded-2xl text-center flex-1 border border-gray-700/50">
-                  <span className="block text-3xl font-black text-primary-400">
-                    {currentExercise.reps || formatTime(currentExercise.durationSeconds || 0)}
-                  </span>
-                  <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
-                    {currentExercise.reps ? 'Repetisi' : 'Target Waktu'}
-                  </span>
-                </div>
-              </div>
-
+              {/* Info Section */}
               <div className="space-y-4">
-                <div className="bg-gray-800/30 p-5 rounded-2xl border border-gray-700/50">
-                  <h3 className="font-bold mb-3 flex items-center gap-2 text-primary-300 text-sm uppercase tracking-wider">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-gray-800/50 p-3 md:p-4 rounded-xl text-center border border-gray-700/50">
+                    <span className="block text-2xl md:text-3xl font-black text-primary-400">{currentExercise.sets}</span>
+                    <span className="text-[10px] text-gray-500 font-bold uppercase">Set</span>
+                  </div>
+                  <div className="bg-gray-800/50 p-3 md:p-4 rounded-xl text-center border border-gray-700/50">
+                    <span className="block text-2xl md:text-3xl font-black text-primary-400">
+                      {currentExercise.reps || formatTime(currentExercise.durationSeconds || 0)}
+                    </span>
+                    <span className="text-[10px] text-gray-500 font-bold uppercase">
+                      {currentExercise.reps ? 'Repetisi' : 'Target Waktu'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-gray-800/30 p-4 rounded-xl border border-gray-700/50">
+                  <h3 className="font-bold mb-2 flex items-center gap-2 text-primary-300 text-xs uppercase tracking-widest">
                     <AlertCircle className="w-4 h-4" /> Instruksi
                   </h3>
-                  <p className="text-gray-300 text-sm leading-relaxed">
+                  <p className="text-gray-300 text-xs md:text-sm leading-relaxed">
                     {currentExercise.description}
                   </p>
                 </div>
 
-                <div className="bg-orange-900/10 p-5 rounded-2xl border border-orange-900/30">
-                   <h3 className="font-bold mb-2 text-orange-400 text-xs uppercase tracking-wider flex items-center gap-2">
-                     Tips Pro
-                   </h3>
-                   <p className="text-gray-400 text-sm italic">"{currentExercise.tips}"</p>
+                <div className="bg-orange-900/10 p-4 rounded-xl border border-orange-900/30">
+                   <p className="text-gray-400 text-xs italic">"{currentExercise.tips}"</p>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Footer Controls */}
+      {/* Footer Controls - Fixed at Bottom */}
       {!isResting && (
-        <div className="fixed bottom-0 left-0 right-0 p-6 border-t border-gray-800 bg-gray-900/80 backdrop-blur-xl z-20">
-          <div className="max-w-lg mx-auto">
+        <div className="fixed bottom-0 left-0 right-0 p-4 md:p-6 border-t border-gray-800 bg-gray-900/90 backdrop-blur-xl z-20 flex-shrink-0">
+          <div className="max-w-4xl mx-auto flex gap-3">
             {!isTimedExercise ? (
               <button 
                 onClick={handleExerciseComplete}
-                className="w-full py-5 bg-primary-600 hover:bg-primary-500 active:bg-primary-700 text-white rounded-2xl font-black text-xl transition-all shadow-xl flex items-center justify-center gap-3 group"
+                className="w-full py-4 bg-primary-600 hover:bg-primary-500 text-white rounded-2xl font-black text-lg transition-all shadow-xl flex items-center justify-center gap-3"
               >
-                Gerakan Selesai <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                Gerakan Selesai <ChevronRight className="w-5 h-5" />
               </button>
             ) : (
               <button 
                 onClick={handleExerciseComplete}
-                className="w-full py-4 text-gray-500 font-bold text-sm hover:text-white transition"
+                className="w-full py-3 text-gray-500 font-bold text-xs hover:text-white transition"
               >
-                Selesaikan Timer Lebih Cepat
+                Lewati Timer
               </button>
             )}
           </div>

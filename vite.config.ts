@@ -18,7 +18,7 @@ export default defineConfig({
         display: 'standalone',
         scope: '/',
         start_url: '/',
-        orientation: 'portrait',
+        orientation: 'any', // Diubah dari portrait agar mendukung rotasi
         icons: [
           {
             src: 'https://cdn-icons-png.flaticon.com/512/2964/2964514.png',
