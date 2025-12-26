@@ -91,6 +91,9 @@ const Dashboard: React.FC<Props> = ({
                 style={{ width: `${progressPercent}%` }}
               ></div>
             </div>
+            <p className="mt-4 text-xs font-bold text-primary-600 flex items-center gap-1">
+              <TrendingDown className="w-3 h-3" /> Target Minggu Ini: {isWeightLoss ? '-' : '+'}{user.weeklyTargetKg}kg
+            </p>
           </div>
           <Flame className="absolute -right-10 -bottom-10 w-32 h-32 md:w-48 md:h-48 text-primary-50 opacity-[0.05] transform -rotate-12" />
         </div>
@@ -288,5 +291,13 @@ const Dashboard: React.FC<Props> = ({
     </div>
   );
 };
+
+// Internal icon for TrendingDown
+const TrendingDown = ({ className }: { className?: string }) => (
+  <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline>
+    <polyline points="17 18 23 18 23 12"></polyline>
+  </svg>
+);
 
 export default Dashboard;

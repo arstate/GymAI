@@ -34,6 +34,7 @@ export interface UserProfile {
   height: number;
   weight: number;
   targetWeight: number;
+  weeklyTargetKg: number; // Tambahan: Target perubahan per minggu (misal: 0.5kg)
   goal: Goal | string;
   equipment: Equipment[];
   dietBudget: DietBudget;

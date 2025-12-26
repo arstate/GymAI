@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { UserProfile, Gender, Goal, Equipment, DietBudget } from '../types';
-import { Activity, Dumbbell, HeartPulse, User, ChevronRight, Check, DollarSign, Wallet, CreditCard, Target, Edit3, Ruler } from 'lucide-react';
+import { Activity, Dumbbell, HeartPulse, User, ChevronRight, Check, DollarSign, Wallet, CreditCard, Target, Edit3, Ruler, TrendingDown } from 'lucide-react';
 
 interface Props {
   onComplete: (profile: UserProfile) => void;
@@ -17,7 +17,8 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
     medicalHistory: '',
     healthCheckStatus: 'Sehat',
     dietBudget: DietBudget.MEDIUM,
-    goal: undefined
+    goal: undefined,
+    weeklyTargetKg: 0.5 // Default target mingguan yang sehat
   });
 
   const handleNext = () => setStep(s => s + 1);
@@ -117,8 +118,8 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
             </div>
 
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
                   <label className="block text-xs font-bold text-gray-400 uppercase mb-2 flex items-center gap-2">
                     <Ruler className="w-4 h-4" /> Tinggi (cm)
                   </label>
@@ -140,17 +141,36 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
                     onChange={e => updateField('weight', parseInt(e.target.value))}
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-primary-50/50 p-4 rounded-[2rem] border border-primary-100">
                 <div>
                   <label className="block text-xs font-bold text-primary-500 uppercase mb-2 flex items-center gap-1">
-                    <Target className="w-3 h-3" /> Target BB (kg)
+                    <Target className="w-3 h-3" /> Target BB Akhir (kg)
                   </label>
                   <input 
                     type="number" 
-                    className="w-full px-4 py-3 border-2 border-primary-200 bg-primary-50 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition font-bold text-primary-700"
+                    className="w-full px-4 py-3 border-2 border-primary-200 bg-white rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition font-bold text-primary-700"
                     placeholder="70"
                     value={formData.targetWeight || ''}
                     onChange={e => updateField('targetWeight', parseInt(e.target.value))}
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-primary-500 uppercase mb-2 flex items-center gap-1">
+                    <TrendingDown className="w-3 h-3" /> Target Per Minggu (kg)
+                  </label>
+                  <select 
+                    className="w-full px-4 py-3 border-2 border-primary-200 bg-white rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition font-bold text-primary-700"
+                    value={formData.weeklyTargetKg || 0.5}
+                    onChange={e => updateField('weeklyTargetKg', parseFloat(e.target.value))}
+                  >
+                    <option value={0.25}>0.25 kg (Sangat Santai)</option>
+                    <option value={0.5}>0.5 kg (Direkomendasikan)</option>
+                    <option value={0.75}>0.75 kg (Agresif)</option>
+                    <option value={1.0}>1.0 kg (Sangat Agresif)</option>
+                  </select>
+                  <p className="text-[10px] text-gray-400 mt-1 ml-1">*Laju penurunan/kenaikan BB mingguan</p>
                 </div>
               </div>
             </div>

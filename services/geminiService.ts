@@ -126,6 +126,7 @@ export const generateFitnessPlan = async (user: UserProfile, weekNumber: number 
       - Tinggi: ${user.height}cm
       - BB Sekarang: ${user.weight}kg
       - Target BB Akhir: ${user.targetWeight}kg
+      - Laju Perubahan BB Target: ${user.weeklyTargetKg} kg per minggu
       - Tujuan Utama: ${user.goal}
       - Peralatan Tersedia: ${user.equipment.join(', ')}
       - Budget Makan: ${user.dietBudget}
@@ -135,7 +136,7 @@ export const generateFitnessPlan = async (user: UserProfile, weekNumber: number 
       - Minggu Ke: ${weekNumber}
 
       Instruksi Khusus: 
-      1. Jika selisih BB sekarang dan target besar, buat defisit/surplus kalori yang aman. 
+      1. Sesuaikan intensitas latihan dan jumlah kalori harian agar mencapai target perubahan berat badan sebesar ${user.weeklyTargetKg} kg per minggu secara aman. 
       2. Menu diet HARUS sangat relevan dengan budget "${user.dietBudget}". 
       3. Gunakan Bahasa Indonesia yang memotivasi.
       
@@ -161,7 +162,8 @@ export const regenerateCheapDietPlan = async (user: UserProfile): Promise<DailyD
   return callGeminiWithRetry(async (ai) => {
     const prompt = `
       Buat ulang rencana makan 7 hari yang sangat optimal untuk budget ${user.dietBudget} untuk ${user.name}.
-      Tujuan: ${user.goal}. BB Saat ini: ${user.weight}kg, Target: ${user.targetWeight}kg.
+      Tujuan: ${user.goal}. BB Saat ini: ${user.weight}kg, Target BB Akhir: ${user.targetWeight}kg. 
+      Laju target perubahan: ${user.weeklyTargetKg} kg per minggu.
       Format output: JSON array dari DailyDiet sesuai schema.
     `;
     
