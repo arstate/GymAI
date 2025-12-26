@@ -51,7 +51,7 @@ const Dashboard: React.FC<Props> = ({
   const isWeightLoss = weightDiff < 0;
 
   return (
-    <div className="max-w-6xl mx-auto p-4 md:p-8 pb-32 animate-fade-in">
+    <div className="max-w-4xl mx-auto p-4 md:p-8 pb-32 animate-fade-in">
       {/* Header Profile Section */}
       <header className="mb-6 md:mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div className="flex items-center gap-5">
@@ -76,9 +76,9 @@ const Dashboard: React.FC<Props> = ({
         </div>
       </header>
 
-      {/* Progress & Target Section - Responsive Grid for Landscape */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
-        <div className="lg:col-span-2 bg-white rounded-[2rem] p-6 md:p-8 shadow-sm border border-gray-100 relative overflow-hidden">
+      {/* Progress & Target Section */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
+        <div className="md:col-span-2 bg-white rounded-[2rem] p-6 md:p-8 shadow-sm border border-gray-100 relative overflow-hidden">
           <div className="relative z-10">
             <h3 className="text-gray-400 font-bold text-[10px] md:text-xs uppercase tracking-widest mb-2">Progres Mingguan</h3>
             <div className="flex items-end gap-2 mb-4">
@@ -169,7 +169,7 @@ const Dashboard: React.FC<Props> = ({
 
       <div className="transition-all duration-300">
         {activeTab === 'workout' && currentRoutine && (
-          <div className="space-y-6 animate-slide-up lg:grid lg:grid-cols-1 gap-6">
+          <div className="space-y-6 animate-slide-up">
             <div className="bg-white rounded-[2rem] p-6 md:p-8 shadow-sm border border-gray-100">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 md:mb-8">
                   <div>
@@ -199,15 +199,15 @@ const Dashboard: React.FC<Props> = ({
                   </div>
                 ) : (
                   <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-8">
+                    <div className="flex flex-col gap-3 md:gap-4 mb-8">
                       {currentRoutine.exercises.map((ex, i) => (
-                        <div key={i} className="group flex items-center p-3 md:p-4 bg-gray-50/50 hover:bg-white hover:shadow-md rounded-2xl transition-all border border-transparent hover:border-gray-100">
-                          <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl flex items-center justify-center text-xs md:text-sm font-black mr-3 flex-shrink-0 ${currentRoutine.isCompleted ? 'bg-green-100 text-green-600' : 'bg-white text-primary-600 shadow-sm'}`}>
-                            {currentRoutine.isCompleted ? <CheckCircle className="w-4 h-4 md:w-5 md:h-5" /> : i + 1}
+                        <div key={i} className="group flex items-center p-3 md:p-4 bg-gray-50/50 hover:bg-white hover:shadow-md rounded-2xl transition-all border border-transparent hover:border-gray-100 w-full">
+                          <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center text-xs md:text-sm font-black mr-4 flex-shrink-0 ${currentRoutine.isCompleted ? 'bg-green-100 text-green-600' : 'bg-white text-primary-600 shadow-sm'}`}>
+                            {currentRoutine.isCompleted ? <CheckCircle className="w-5 h-5 md:w-6 md:h-6" /> : i + 1}
                           </div>
                           <div className="flex-1 min-w-0">
-                             <h4 className="font-bold text-gray-900 text-xs md:text-sm truncate">{ex.name}</h4>
-                             <p className="text-[10px] text-gray-400 mt-0.5">{ex.sets} Set • {ex.reps ? `${ex.reps} Repetisi` : `${ex.durationSeconds} Detik`}</p>
+                             <h4 className="font-bold text-gray-900 text-sm md:text-base mb-0.5">{ex.name}</h4>
+                             <p className="text-[10px] md:text-xs text-gray-400">{ex.sets} Set • {ex.reps ? `${ex.reps} Repetisi` : `${ex.durationSeconds} Detik`}</p>
                           </div>
                           <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-primary-400 transition-colors" />
                         </div>
@@ -259,7 +259,7 @@ const Dashboard: React.FC<Props> = ({
                 </button>
              </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+             <div className="flex flex-col gap-3 md:gap-4">
                {[
                  { label: 'Sarapan', data: currentDiet.meals.breakfast, icon: '🍳' },
                  { label: 'Makan Siang', data: currentDiet.meals.lunch, icon: '🍛' },
@@ -267,17 +267,17 @@ const Dashboard: React.FC<Props> = ({
                  { label: 'Cemilan 1', data: currentDiet.meals.snack1, icon: '🍎' },
                  ...(currentDiet.meals.snack2 ? [{ label: 'Cemilan 2', data: currentDiet.meals.snack2, icon: '🥜' }] : [])
                ].map((meal, idx) => (
-                 <div key={idx} className="p-5 bg-white border border-gray-100 rounded-[1.5rem] md:rounded-[2rem] hover:shadow-lg transition-all flex items-start gap-4">
-                    <div className="text-2xl md:text-3xl bg-gray-50 w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center flex-shrink-0">
+                 <div key={idx} className="p-5 bg-white border border-gray-100 rounded-[1.5rem] md:rounded-[2rem] hover:shadow-lg transition-all flex items-start gap-4 w-full">
+                    <div className="text-2xl md:text-3xl bg-gray-50 w-14 h-14 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center flex-shrink-0">
                       {meal.icon}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest">{meal.label}</span>
-                        <span className="text-[9px] text-gray-400 font-bold">{meal.data.time}</span>
+                        <span className="text-[9px] md:text-[10px] font-black text-orange-500 uppercase tracking-widest">{meal.label}</span>
+                        <span className="text-[9px] md:text-[10px] text-gray-400 font-bold">{meal.data.time}</span>
                       </div>
-                      <h4 className="font-bold text-gray-900 text-xs md:text-sm truncate mb-0.5">{meal.data.menu}</h4>
-                      <div className="text-[10px] font-medium text-gray-400">{meal.data.calories} kcal</div>
+                      <h4 className="font-bold text-gray-900 text-sm md:text-base mb-1">{meal.data.menu}</h4>
+                      <div className="text-[10px] md:text-xs font-medium text-gray-400">{meal.data.calories} kcal</div>
                     </div>
                  </div>
                ))}
