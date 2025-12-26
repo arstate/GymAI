@@ -1,17 +1,21 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+
+import { GoogleGenAI, Type } from "@google/genai";
 import { UserProfile, FitnessPlan, WeeklyFeedback, DailyDiet } from "../types";
 
-// Inisialisasi AI secara langsung menggunakan process.env.API_KEY
-// Di Vercel, pastikan Anda sudah menambahkan environment variable dengan nama API_KEY
-const getAI = () => {
+/**
+ * Fungsi pembantu untuk membuat instance AI baru setiap kali dipanggil.
+ * Ini memastikan aplikasi selalu menggunakan API_KEY yang aktif (baik dari env atau dialog).
+ */
+const createClient = () => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
-    throw new Error("API Key tidak ditemukan. Pastikan sudah diatur di Environment Variables.");
+    throw new Error("API_KEY_MISSING");
   }
   return new GoogleGenAI({ apiKey });
 };
 
-const exerciseSchema: Schema = {
+// Skema untuk latihan dalam rutinitas
+const exerciseSchema = {
   type: Type.OBJECT,
   properties: {
     name: { type: Type.STRING },
@@ -25,7 +29,8 @@ const exerciseSchema: Schema = {
   required: ["name", "description", "sets", "restSeconds", "tips"]
 };
 
-const dailyRoutineSchema: Schema = {
+// Skema untuk rutinitas harian (Workout)
+const dailyRoutineSchema = {
   type: Type.OBJECT,
   properties: {
     dayNumber: { type: Type.INTEGER },
@@ -38,7 +43,8 @@ const dailyRoutineSchema: Schema = {
   required: ["dayNumber", "title", "focusArea", "isRestDay", "exercises", "estimatedDurationMin"]
 };
 
-const mealSchema: Schema = {
+// Skema untuk rincian makanan
+const mealSchema = {
   type: Type.OBJECT,
   properties: {
     time: { type: Type.STRING },
@@ -48,7 +54,8 @@ const mealSchema: Schema = {
   required: ["time", "menu", "calories"]
 };
 
-const dailyDietSchema: Schema = {
+// Skema untuk diet harian
+const dailyDietSchema = {
   type: Type.OBJECT,
   properties: {
     dayNumber: { type: Type.INTEGER },
@@ -68,7 +75,8 @@ const dailyDietSchema: Schema = {
   required: ["dayNumber", "totalCalories", "meals"]
 };
 
-const fitnessPlanSchema: Schema = {
+// Skema utama rencana kebugaran mingguan
+const fitnessPlanSchema = {
   type: Type.OBJECT,
   properties: {
     weekNumber: { type: Type.INTEGER },
@@ -80,37 +88,64 @@ const fitnessPlanSchema: Schema = {
   required: ["weekNumber", "overview", "routines", "diet", "createdAt"]
 };
 
+/**
+ * Menghasilkan rencana kebugaran dan diet 7 hari yang dipersonalisasi.
+ */
 export const generateFitnessPlan = async (user: UserProfile, weekNumber: number = 1, lastFeedback?: WeeklyFeedback): Promise<FitnessPlan> => {
-  const ai = getAI();
-  const model = "gemini-flash-lite-latest";
+  const ai = createClient();
+  // Menggunakan model Gemini 3 Flash untuk keseimbangan kecepatan dan kecerdasan dalam perencanaan
+  const model = "gemini-3-flash-preview";
   const prompt = `
-    Pelatih Profesional. Buat rencana 7 hari.
-    DATA: Nama ${user.name}, Goal ${user.goal}, Alat ${user.equipment.join(', ')}, Budget Makan: ${user.dietBudget}.
-    
-    PENTING:
-    - Jika Budget Makan adalah 'Murah', gunakan menu sangat hemat/anak kos (tempe, tahu, telur).
-    - Bahasa Indonesia, format JSON.
+    Bertindaklah sebagai Pelatih Kebugaran AI Profesional.
+    Buat rencana kebugaran & diet 7 hari untuk user berikut:
+    - Nama: ${user.name}, Umur: ${user.age} tahun
+    - Tujuan: ${user.goal}
+    - Peralatan: ${user.equipment.join(', ')}
+    - Budget Makan: ${user.dietBudget}
+    - Riwayat Medis: ${user.medicalHistory || 'Tidak ada'}
+    - Perokok: ${user.isSmoker ? 'Ya' : 'Tidak'}
+    - Feedback Minggu Lalu: ${lastFeedback ? JSON.stringify(lastFeedback) : 'Baru mulai'}
+    - Minggu Ke: ${weekNumber}
+
+    Kebutuhan:
+    1. Pastikan menu diet sesuai dengan budget yang dipilih.
+    2. Jika user memiliki riwayat medis, hindari gerakan yang berbahaya.
+    3. Gunakan Bahasa Indonesia yang sangat ramah dan memotivasi.
+    4. Kembalikan data dalam format JSON murni sesuai schema.
   `;
 
   const response = await ai.models.generateContent({
     model,
     contents: prompt,
-    config: { responseMimeType: "application/json", responseSchema: fitnessPlanSchema }
+    config: { 
+      responseMimeType: "application/json", 
+      responseSchema: fitnessPlanSchema 
+    }
   });
-  const text = response.text || "";
-  return JSON.parse(text.trim().replace(/^```json/i, "").replace(/```$/i, "")) as FitnessPlan;
+  
+  return JSON.parse(response.text.trim());
 };
 
+/**
+ * Menghasilkan ulang rencana makan khusus dengan budget hemat (local food focus).
+ */
 export const regenerateCheapDietPlan = async (user: UserProfile): Promise<DailyDiet[]> => {
-  const ai = getAI();
-  const model = "gemini-flash-lite-latest";
-  const prompt = `Buat ulang rencana makan 7 hari (Budget: MURAH/HEMAT) untuk ${user.name}. Gunakan bahan lokal sangat murah. Format JSON array.`;
+  const ai = createClient();
+  const model = "gemini-3-flash-preview";
+  const prompt = `
+    Buat ulang rencana makan 7 hari (Budget: HEMAT) untuk ${user.name} (Tujuan: ${user.goal}).
+    Fokus pada bahan lokal murah yang kaya protein seperti telur, tempe, tahu, dan dada ayam jika memungkinkan.
+    Format output: JSON array dari DailyDiet.
+  `;
   
   const response = await ai.models.generateContent({
     model,
     contents: prompt,
-    config: { responseMimeType: "application/json", responseSchema: { type: Type.ARRAY, items: dailyDietSchema } }
+    config: { 
+      responseMimeType: "application/json", 
+      responseSchema: { type: Type.ARRAY, items: dailyDietSchema } 
+    }
   });
-  const text = response.text || "";
-  return JSON.parse(text.trim().replace(/^```json/i, "").replace(/```$/i, "")) as DailyDiet[];
+  
+  return JSON.parse(response.text.trim());
 };

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
@@ -6,11 +7,28 @@ import WeeklyCheckin from './components/WeeklyCheckin';
 import CustomDialog from './components/CustomDialog';
 import { UserProfile, FitnessPlan, DailyRoutine, AppView, WeeklyFeedback } from './types';
 import { generateFitnessPlan, regenerateCheapDietPlan } from './services/geminiService';
+import { Key, ShieldCheck, ExternalLink } from 'lucide-react';
 
 const STORAGE_KEY = 'fitgenius_data_v3';
 
+// Deklarasi Global untuk API Studio sesuai dengan standar lingkungan
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+
+  interface Window {
+    /**
+     * The aistudio object provided by the environment.
+     * Must be declared as readonly to match system modifiers.
+     */
+    readonly aistudio: AIStudio;
+  }
+}
+
 const App: React.FC = () => {
-  const [view, setView] = useState<AppView>('ONBOARDING');
+  const [view, setView] = useState<AppView | 'KEY_SETUP'>('ONBOARDING');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [fitnessPlan, setFitnessPlan] = useState<FitnessPlan | null>(null);
   const [activeRoutine, setActiveRoutine] = useState<DailyRoutine | null>(null);
@@ -18,7 +36,6 @@ const App: React.FC = () => {
   const [isRegeneratingDiet, setIsRegeneratingDiet] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Custom Dialog State
   const [dialog, setDialog] = useState<{
     isOpen: boolean;
     type: 'alert' | 'confirm';
@@ -33,32 +50,51 @@ const App: React.FC = () => {
     onConfirm: () => {},
   });
 
-  // PWA Install State
-  const [installPrompt, setInstallPrompt] = useState<any>(null);
-
   useEffect(() => {
-    const savedData = localStorage.getItem(STORAGE_KEY);
-    if (savedData) {
+    const initializeApp = async () => {
       try {
-        const parsed = JSON.parse(savedData);
-        if (parsed.userProfile && parsed.fitnessPlan) {
-          setUserProfile(parsed.userProfile);
-          setFitnessPlan(parsed.fitnessPlan);
-          setView('DASHBOARD');
+        // 1. Cek apakah key sudah terpilih di sistem
+        const keySelected = await window.aistudio.hasSelectedApiKey();
+        
+        // 2. Muat data dari storage
+        const savedData = localStorage.getItem(STORAGE_KEY);
+        if (savedData) {
+          try {
+            const parsed = JSON.parse(savedData);
+            if (parsed.userProfile && parsed.fitnessPlan) {
+              setUserProfile(parsed.userProfile);
+              setFitnessPlan(parsed.fitnessPlan);
+              // Jika data ada tapi key belum ada, minta setup key
+              if (!keySelected) setView('KEY_SETUP');
+              else setView('DASHBOARD');
+            }
+          } catch (e) {
+            localStorage.removeItem(STORAGE_KEY);
+          }
+        } else if (!keySelected) {
+          // Jika user baru dan belum ada key
+          setView('KEY_SETUP');
         }
-      } catch (e) {
-        localStorage.removeItem(STORAGE_KEY);
+      } catch (err) {
+        // Default to onboarding/setup if something fails
+        setView('ONBOARDING');
       }
-    }
-
-    const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
-      setInstallPrompt(e);
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    initializeApp();
   }, []);
+
+  // Handle trigger untuk membuka dialog pemilihan API Key
+  const handleSelectKey = async () => {
+    try {
+      await window.aistudio.openSelectKey();
+      // Mengatasi race condition: asumsikan pemilihan berhasil setelah dialog ditutup
+      if (userProfile && fitnessPlan) setView('DASHBOARD');
+      else setView('ONBOARDING');
+    } catch (err) {
+      console.error("Gagal membuka pemilihan kunci:", err);
+    }
+  };
 
   const openAlert = (title: string, message: string) => {
     setDialog({
@@ -83,19 +119,6 @@ const App: React.FC = () => {
     });
   };
 
-  const handleInstallClick = () => {
-    if (!installPrompt) return;
-    installPrompt.prompt();
-    installPrompt.userChoice.then(() => setInstallPrompt(null));
-  };
-
-  const saveToStorage = (profile: UserProfile, plan: FitnessPlan) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      userProfile: profile,
-      fitnessPlan: plan
-    }));
-  };
-
   const handleOnboardingComplete = async (profile: UserProfile) => {
     setIsLoading(true);
     setError(null);
@@ -103,12 +126,18 @@ const App: React.FC = () => {
       const plan = await generateFitnessPlan(profile, 1);
       setUserProfile(profile);
       setFitnessPlan(plan);
-      saveToStorage(profile, plan);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ userProfile: profile, fitnessPlan: plan }));
       setView('DASHBOARD');
     } catch (err: any) {
-      const msg = err.message || "Gagal menghasilkan rencana.";
-      setError(msg);
-      openAlert("Kesalahan API", "Gagal memanggil AI. Pastikan Environment Variable 'API_KEY' sudah benar di Vercel.");
+      // Penanganan error API Key sesuai guideline
+      if (err.message === "API_KEY_MISSING" || (err.message && err.message.includes("Requested entity was not found."))) {
+        openAlert("Aktivasi Diperlukan", "Silakan pilih API Key untuk melanjutkan.");
+        setView('KEY_SETUP');
+      } else {
+        const msg = err.message || "Gagal menghasilkan rencana.";
+        setError(msg);
+        openAlert("Kesalahan API", "Gagal memanggil AI. Silakan pastikan API Key Anda aktif atau coba konfigurasi ulang.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -119,62 +148,60 @@ const App: React.FC = () => {
     setIsLoading(true);
     try {
       const updatedUser = { ...userProfile, weight: feedback.currentWeight };
+      const nextWeek = fitnessPlan.weekNumber + 1;
+      const newPlan = await generateFitnessPlan(updatedUser, nextWeek, feedback);
       setUserProfile(updatedUser);
-      const nextWeekNumber = fitnessPlan.weekNumber + 1;
-      const newPlan = await generateFitnessPlan(updatedUser, nextWeekNumber, feedback);
       setFitnessPlan(newPlan);
-      saveToStorage(updatedUser, newPlan);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ userProfile: updatedUser, fitnessPlan: newPlan }));
       setView('DASHBOARD');
     } catch (err: any) {
-      openAlert("Gagal", err.message || "Tidak bisa membuat jadwal baru.");
+      if (err.message && err.message.includes("Requested entity was not found.")) {
+        openAlert("API Key Bermasalah", "Kunci API tidak valid. Silakan pilih kembali.");
+        setView('KEY_SETUP');
+      } else {
+        openAlert("Gagal", "Gagal memperbarui rencana mingguan.");
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleRegenerateDiet = async () => {
-    if (!userProfile || !fitnessPlan) return;
-    
-    openConfirm(
-      "Ganti Menu?", 
-      "Menu makanan saat ini akan diganti dengan opsi LEBIH MURAH. Lanjut?", 
-      async () => {
-        setIsRegeneratingDiet(true);
-        try {
-          const newDiet = await regenerateCheapDietPlan(userProfile);
-          const updatedPlan = { ...fitnessPlan, diet: newDiet };
-          setFitnessPlan(updatedPlan);
-          saveToStorage(userProfile, updatedPlan);
-          openAlert("Berhasil!", "Menu makanan telah diperbarui menjadi lebih hemat.");
-        } catch (err: any) {
-          openAlert("Gagal", err.message || "Gagal mengganti menu.");
-        } finally {
-          setIsRegeneratingDiet(false);
-        }
-      }
-    );
-  };
+  if (view === 'KEY_SETUP') {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-24 h-24 bg-primary-50 rounded-3xl flex items-center justify-center mb-6 animate-pulse">
+          <Key className="w-12 h-12 text-primary-600" />
+        </div>
+        <h1 className="text-3xl font-black text-gray-900 mb-2">Aktivasi FitGenius ID</h1>
+        <p className="text-gray-500 max-w-sm mb-8 leading-relaxed">
+          Untuk menggunakan aplikasi ini, Anda perlu memilih API Key Gemini Anda sendiri. Ini lebih aman daripada menyimpannya di environment publik.
+        </p>
+        
+        <div className="bg-blue-50 border border-blue-100 p-5 rounded-2xl mb-8 flex items-start gap-3 text-left max-w-sm">
+          <ShieldCheck className="w-6 h-6 text-blue-600 flex-shrink-0" />
+          <p className="text-xs text-blue-800 leading-relaxed">
+            <b>Mengapa?</b> API Key yang ditaruh di Vercel/Publik sering diblokir Google karena terdeteksi "Bocor". Dengan cara ini, kunci Anda tetap aman.
+          </p>
+        </div>
 
-  const handleFinishWeek = () => {
-    openConfirm(
-      "Selesai Minggu Ini?", 
-      "Anda akan lanjut ke evaluasi mingguan. Pastikan semua latihan sudah selesai.", 
-      () => setView('WEEKLY_CHECKIN')
+        <button 
+          onClick={handleSelectKey}
+          className="w-full max-w-sm py-4 bg-primary-600 text-white rounded-2xl font-bold hover:bg-primary-700 transition shadow-xl shadow-primary-100 flex items-center justify-center gap-2 mb-4"
+        >
+          Konfigurasi API Key Sekarang
+        </button>
+        
+        <a 
+          href="https://ai.google.dev/gemini-api/docs/billing" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-xs text-gray-400 flex items-center gap-1 hover:text-primary-600"
+        >
+          Butuh info tentang Billing? Klik di sini <ExternalLink className="w-3 h-3" />
+        </a>
+      </div>
     );
-  };
-
-  const handleReset = () => {
-    openConfirm(
-      "Reset Aplikasi?", 
-      "Semua data profil dan progres latihan akan DIHAPUS PERMANEN.", 
-      () => {
-        localStorage.removeItem(STORAGE_KEY);
-        setUserProfile(null);
-        setFitnessPlan(null);
-        setView('ONBOARDING');
-      }
-    );
-  };
+  }
 
   return (
     <div className="min-h-screen font-sans text-gray-900 bg-gray-50">
@@ -188,29 +215,13 @@ const App: React.FC = () => {
       />
 
       {view === 'ONBOARDING' && (
-        <div className="min-h-screen flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen flex flex-col justify-center py-12 px-4">
           <div className="text-center mb-4">
             <h1 className="text-4xl font-black text-primary-600 tracking-tight">FitGenius ID</h1>
             <p className="text-gray-400 font-medium">Personal AI Fitness Coach</p>
           </div>
           <Onboarding onComplete={handleOnboardingComplete} isLoading={isLoading} />
-          
-          {error && (
-            <div className="max-w-lg mx-auto mt-6 p-4 bg-red-50 text-red-700 border border-red-100 rounded-2xl text-center text-xs font-bold shadow-sm">
-              ERROR: {error}
-            </div>
-          )}
-
-          {installPrompt && (
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-              <button 
-                onClick={handleInstallClick}
-                className="bg-gray-900 text-white px-8 py-3 rounded-full shadow-2xl font-bold flex items-center gap-2 hover:scale-105 transition"
-              >
-                📲 Install App
-              </button>
-            </div>
-          )}
+          {error && <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-xl text-center text-xs font-bold">{error}</div>}
         </div>
       )}
 
@@ -218,13 +229,29 @@ const App: React.FC = () => {
         <Dashboard 
           plan={fitnessPlan} 
           user={userProfile} 
-          onStartWorkout={(routine) => { setActiveRoutine(routine); setView('WORKOUT_SESSION'); }}
-          onReset={handleReset}
-          onFinishWeek={handleFinishWeek}
-          onRegenerateDiet={handleRegenerateDiet}
+          onStartWorkout={(r) => { setActiveRoutine(r); setView('WORKOUT_SESSION'); }}
+          onReset={() => { localStorage.removeItem(STORAGE_KEY); window.location.reload(); }}
+          onFinishWeek={() => setView('WEEKLY_CHECKIN')}
+          onRegenerateDiet={async () => {
+             setIsRegeneratingDiet(true);
+             try {
+               const diet = await regenerateCheapDietPlan(userProfile);
+               const newPlan = { ...fitnessPlan, diet };
+               setFitnessPlan(newPlan);
+               localStorage.setItem(STORAGE_KEY, JSON.stringify({ userProfile, fitnessPlan: newPlan }));
+             } catch(err: any) { 
+               if (err.message && err.message.includes("Requested entity was not found.")) {
+                 openAlert("Sesi Berakhir", "Sesi API Key Anda berakhir. Silakan pilih kembali.");
+                 setView('KEY_SETUP');
+               } else {
+                 openAlert("Gagal", "Gagal membuat menu baru."); 
+               }
+             }
+             finally { setIsRegeneratingDiet(false); }
+          }}
           isRegeneratingDiet={isRegeneratingDiet}
-          installPrompt={installPrompt}
-          onInstallApp={handleInstallClick}
+          installPrompt={null}
+          onInstallApp={() => {}}
         />
       )}
 
@@ -239,13 +266,12 @@ const App: React.FC = () => {
       {view === 'WORKOUT_SESSION' && activeRoutine && (
         <WorkoutSession 
           routine={activeRoutine} 
-          onExit={() => { setActiveRoutine(null); setView('DASHBOARD'); }}
+          onExit={() => setView('DASHBOARD')}
           onComplete={() => {
-            const updatedRoutines = fitnessPlan!.routines.map(r => r.dayNumber === activeRoutine.dayNumber ? { ...r, isCompleted: true } : r);
-            const updatedPlan = { ...fitnessPlan!, routines: updatedRoutines };
-            setFitnessPlan(updatedPlan);
-            saveToStorage(userProfile!, updatedPlan);
-            setActiveRoutine(null);
+            const updated = fitnessPlan!.routines.map(r => r.dayNumber === activeRoutine.dayNumber ? { ...r, isCompleted: true } : r);
+            const newPlan = { ...fitnessPlan!, routines: updated };
+            setFitnessPlan(newPlan);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ userProfile, fitnessPlan: newPlan }));
             setView('DASHBOARD');
           }}
         />
