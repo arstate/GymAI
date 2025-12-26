@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { DailyRoutine, Exercise } from '../types';
-import { generateExerciseImage } from '../services/geminiService';
 import { ChevronRight, Clock, AlertCircle, CheckCircle, ArrowLeft, Play, Pause, RotateCcw, ImageIcon, Loader2 } from 'lucide-react';
 
 interface Props {
@@ -17,35 +16,12 @@ const WorkoutSession: React.FC<Props> = ({ routine, onExit, onComplete }) => {
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   
-  const [illustrationUrl, setIllustrationUrl] = useState<string | null>(null);
-  const [isGeneratingImg, setIsGeneratingImg] = useState(false);
-
   const [exerciseTimer, setExerciseTimer] = useState(0);
   const [isExerciseActive, setIsExerciseActive] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
 
   const currentExercise = routine.exercises[currentIndex];
   const isTimedExercise = !!(currentExercise.durationSeconds && currentExercise.durationSeconds > 0);
-
-  // Auto-generate image when exercise changes
-  useEffect(() => {
-    const fetchImage = async () => {
-      if (isResting || isCompleted) return;
-      
-      setIsGeneratingImg(true);
-      setIllustrationUrl(null);
-      try {
-        const url = await generateExerciseImage(currentExercise.name, currentExercise.imagePrompt);
-        setIllustrationUrl(url);
-      } catch (err) {
-        console.error("Gagal generate gambar:", err);
-      } finally {
-        setIsGeneratingImg(false);
-      }
-    };
-
-    fetchImage();
-  }, [currentIndex, isResting, isCompleted]);
 
   const initAudio = () => {
     if (!audioContextRef.current) {
@@ -146,13 +122,8 @@ const WorkoutSession: React.FC<Props> = ({ routine, onExit, onComplete }) => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in items-start">
               <div className="space-y-4">
                 <div className="aspect-video bg-white rounded-2xl md:rounded-3xl flex items-center justify-center overflow-hidden relative shadow-2xl border border-gray-700 group">
-                   {isGeneratingImg ? (
-                     <div className="flex flex-col items-center gap-2">
-                       <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
-                       <span className="text-gray-400 text-[10px] font-bold animate-pulse">AI Sedang Menggambar Stikmen...</span>
-                     </div>
-                   ) : illustrationUrl ? (
-                     <img src={illustrationUrl} alt={currentExercise.name} className="w-full h-full object-contain p-4" />
+                   {currentExercise.imageUrl ? (
+                     <img src={currentExercise.imageUrl} alt={currentExercise.name} className="w-full h-full object-contain p-4" />
                    ) : (
                      <div className="text-center p-8">
                        <ImageIcon className="w-12 h-12 text-gray-200 mx-auto mb-2" />

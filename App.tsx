@@ -16,6 +16,7 @@ const App: React.FC = () => {
   const [fitnessPlan, setFitnessPlan] = useState<FitnessPlan | null>(null);
   const [activeRoutine, setActiveRoutine] = useState<DailyRoutine | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState('Memuat FitGenius...');
   const [isRegeneratingDiet, setIsRegeneratingDiet] = useState(false);
   
   const [dialog, setDialog] = useState<{
@@ -66,15 +67,17 @@ const App: React.FC = () => {
   const handleOnboardingComplete = async (profile: UserProfile) => {
     setIsLoading(true);
     try {
-      const plan = await generateFitnessPlan(profile, 1);
+      // Mengirim callback setLoadingMsg agar pengguna tahu progressnya
+      const plan = await generateFitnessPlan(profile, 1, undefined, setLoadingMsg);
       setUserProfile(profile);
       setFitnessPlan(plan);
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ userProfile: profile, fitnessPlan: plan }));
       setView('DASHBOARD');
     } catch (err: any) {
-      openAlert("Gagal Menghubungkan AI", `Terjadi kesalahan: ${err.message}. Pastikan daftar API_KEY di Vercel valid.`);
+      openAlert("Gagal Menghubungkan AI", `Terjadi kesalahan: ${err.message}.`);
     } finally {
       setIsLoading(false);
+      setLoadingMsg('Memuat FitGenius...');
     }
   };
 
@@ -86,23 +89,25 @@ const App: React.FC = () => {
       const updatedProfile = { ...userProfile, weight: feedback.currentWeight };
       setUserProfile(updatedProfile);
       
-      const plan = await generateFitnessPlan(updatedProfile, nextWeek, feedback);
+      const plan = await generateFitnessPlan(updatedProfile, nextWeek, feedback, setLoadingMsg);
       setFitnessPlan(plan);
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ userProfile: updatedProfile, fitnessPlan: plan }));
       setView('DASHBOARD');
-      openAlert("Minggu Baru!", "Program minggu depan sudah siap.");
+      openAlert("Minggu Baru!", "Program minggu depan sudah siap dengan gambar tutorial lengkap.");
     } catch (err: any) {
       openAlert("Gagal", `Gagal memuat jadwal: ${err.message}`);
     } finally {
       setIsLoading(false);
+      setLoadingMsg('Memuat FitGenius...');
     }
   };
 
-  if (view === 'LOADING') {
+  if (view === 'LOADING' || (isLoading && view !== 'ONBOARDING')) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-white">
-        <div className="relative animate-spin rounded-full h-12 w-12 border-4 border-primary-600 border-t-transparent"></div>
-        <p className="mt-4 text-gray-500 font-medium">Memuat FitGenius...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white px-6">
+        <div className="relative animate-spin rounded-full h-16 w-16 border-4 border-primary-600 border-t-transparent shadow-xl"></div>
+        <p className="mt-8 text-gray-900 font-black text-lg tracking-tight text-center">{loadingMsg}</p>
+        <p className="mt-2 text-gray-400 text-sm text-center">AI sedang menggambar ilustrasi tutorial untukmu...</p>
       </div>
     );
   }

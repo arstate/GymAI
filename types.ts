@@ -53,7 +53,8 @@ export interface WeeklyFeedback {
 export interface Exercise {
   name: string;
   description: string;
-  imagePrompt: string; // Deskripsi untuk AI menggambar stickman
+  imagePrompt: string; 
+  imageUrl?: string; // Menyimpan data base64 gambar stikmen secara permanen
   durationSeconds?: number;
   reps?: number;
   sets?: number;
