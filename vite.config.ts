@@ -33,6 +33,10 @@ export default defineConfig({
       }
     })
   ],
+  // Trik Utama: Memasukkan API_KEY dari environment Vercel ke dalam bundle aplikasi
+  define: {
+    'process.env.API_KEY': JSON.stringify(process.env.API_KEY)
+  },
   build: {
     outDir: 'dist',
   },
