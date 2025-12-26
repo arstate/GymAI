@@ -2,10 +2,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { UserProfile, FitnessPlan, WeeklyFeedback, DailyDiet } from "../types";
 
-// Fungsi untuk mendapatkan daftar key dari environment
+// Fungsi untuk mendapatkan daftar key dari environment dengan proteksi crash
 const getApiKeys = (): string[] => {
-  const keys = process.env.API_KEY || "";
-  return keys.split(",").map(k => k.trim()).filter(Boolean);
+  try {
+    const keys = (process.env.API_KEY || "").toString();
+    return keys.split(",").map(k => k.trim()).filter(Boolean);
+  } catch (e) {
+    return [];
+  }
 };
 
 // Variable untuk melacak key mana yang sedang digunakan
@@ -20,7 +24,7 @@ async function callGeminiWithRetry<T>(
 ): Promise<T> {
   const keys = getApiKeys();
   if (keys.length === 0) {
-    throw new Error("API_KEY tidak ditemukan di environment variable.");
+    throw new Error("API_KEY tidak ditemukan. Harap atur API_KEY di Environment Variables Vercel.");
   }
 
   const keyToUse = keys[currentKeyIndex % keys.length];
@@ -121,7 +125,7 @@ export const generateFitnessPlan = async (user: UserProfile, weekNumber: number 
       - Jenis Kelamin: ${user.gender}
       - Tinggi: ${user.height}cm
       - BB Sekarang: ${user.weight}kg
-      - Target BB Akhir: ${user.targetWeight}kg (Penting: Sesuaikan kalori berdasarkan target ini)
+      - Target BB Akhir: ${user.targetWeight}kg
       - Tujuan Utama: ${user.goal}
       - Peralatan Tersedia: ${user.equipment.join(', ')}
       - Budget Makan: ${user.dietBudget}
@@ -143,8 +147,7 @@ export const generateFitnessPlan = async (user: UserProfile, weekNumber: number 
       contents: prompt,
       config: { 
         responseMimeType: "application/json", 
-        responseSchema: fitnessPlanSchema,
-        thinkingConfig: { thinkingBudget: 2000 }
+        responseSchema: fitnessPlanSchema
       }
     });
     
@@ -159,7 +162,6 @@ export const regenerateCheapDietPlan = async (user: UserProfile): Promise<DailyD
     const prompt = `
       Buat ulang rencana makan 7 hari yang sangat optimal untuk budget ${user.dietBudget} untuk ${user.name}.
       Tujuan: ${user.goal}. BB Saat ini: ${user.weight}kg, Target: ${user.targetWeight}kg.
-      Gunakan istilah kuliner Indonesia yang umum.
       Format output: JSON array dari DailyDiet sesuai schema.
     `;
     

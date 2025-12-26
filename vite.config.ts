@@ -18,7 +18,7 @@ export default defineConfig({
         display: 'standalone',
         scope: '/',
         start_url: '/',
-        orientation: 'any', // Diubah dari portrait agar mendukung rotasi
+        orientation: 'any',
         icons: [
           {
             src: 'https://cdn-icons-png.flaticon.com/512/2964/2964514.png',
@@ -35,11 +35,16 @@ export default defineConfig({
     })
   ],
   define: {
-    // Memastikan API_KEY dari environment tersedia untuk aplikasi
-    'process.env.API_KEY': JSON.stringify(process.env.API_KEY),
+    // Memastikan process.env tidak undefined di browser
+    'process.env': {
+      API_KEY: JSON.stringify(process.env.API_KEY || '')
+    },
+    // Kompatibilitas untuk pemanggilan langsung process.env.API_KEY
+    'process.env.API_KEY': JSON.stringify(process.env.API_KEY || ''),
   },
   build: {
     outDir: 'dist',
+    target: 'esnext'
   },
   server: {
     port: 3000,
