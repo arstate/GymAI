@@ -23,7 +23,6 @@ async function executeWithRotation<T>(operation: (ai: GoogleGenAI) => Promise<T>
   throw new Error(lastError?.message || "Gagal menghubungi layanan AI.");
 }
 
-// ... schemas remain same ...
 const exerciseSchema: Schema = {
   type: Type.OBJECT,
   properties: {
@@ -94,7 +93,8 @@ const fitnessPlanSchema: Schema = {
 };
 
 export const generateFitnessPlan = async (user: UserProfile, weekNumber: number = 1, lastFeedback?: WeeklyFeedback): Promise<FitnessPlan> => {
-  const model = "gemini-3-flash-preview";
+  // Switch to Gemini 1.5 Flash Lite
+  const model = "gemini-flash-lite-latest";
   let contextPrompt = weekNumber > 1 ? `Feedback: ${lastFeedback?.difficultyRating}, Berat: ${lastFeedback?.currentWeight}kg.` : "Rencana Baru.";
 
   const prompt = `
@@ -119,7 +119,8 @@ export const generateFitnessPlan = async (user: UserProfile, weekNumber: number 
 };
 
 export const regenerateCheapDietPlan = async (user: UserProfile): Promise<DailyDiet[]> => {
-  const model = "gemini-3-flash-preview";
+  // Switch to Gemini 1.5 Flash Lite
+  const model = "gemini-flash-lite-latest";
   const prompt = `Buat ulang rencana makan 7 hari (Budget: MURAH/HEMAT) untuk ${user.name}. Gunakan bahan lokal sangat murah. Format JSON array.`;
   return executeWithRotation(async (ai) => {
     const response = await ai.models.generateContent({
