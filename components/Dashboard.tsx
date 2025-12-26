@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FitnessPlan, DailyRoutine, UserProfile } from '../types';
 import { Play, Utensils, Calendar, Clock, Award, Info, CheckCircle, ChevronRight, Moon, Flame, RefreshCw, DollarSign, Download, Settings, Target } from 'lucide-react';
 
@@ -27,7 +27,18 @@ const Dashboard: React.FC<Props> = ({
   onInstallApp
 }) => {
   const [activeTab, setActiveTab] = useState<'workout' | 'diet'>('workout');
-  const [selectedDay, setSelectedDay] = useState<number>(new Date().getDay() || 7);
+  
+  // Logika: Cari hari pertama yang belum selesai, jika semua selesai balik ke hari 1
+  const firstIncompleteDay = plan.routines.find(r => !r.isCompleted)?.dayNumber || 1;
+  const [selectedDay, setSelectedDay] = useState<number>(firstIncompleteDay);
+
+  // Pastikan saat plan berubah (misal setelah refresh/load), selectedDay terupdate ke hari yang belum selesai
+  useEffect(() => {
+    const incomplete = plan.routines.find(r => !r.isCompleted)?.dayNumber;
+    if (incomplete) {
+      setSelectedDay(incomplete);
+    }
+  }, [plan.weekNumber]);
 
   const currentRoutine = plan.routines.find(r => r.dayNumber === selectedDay);
   const currentDiet = plan.diet.find(d => d.dayNumber === selectedDay);
@@ -35,7 +46,6 @@ const Dashboard: React.FC<Props> = ({
   const completedDaysCount = plan.routines.filter(r => r.isCompleted).length;
   const progressPercent = (completedDaysCount / 7) * 100;
 
-  // Hitung selisih berat badan
   const weightDiff = user.targetWeight - user.weight;
   const isWeightLoss = weightDiff < 0;
 
@@ -84,12 +94,11 @@ const Dashboard: React.FC<Props> = ({
           <Flame className="absolute -right-10 -bottom-10 w-48 h-48 text-primary-50 opacity-[0.05] transform -rotate-12" />
         </div>
         
-        {/* Updated Weight Card */}
         <div className="bg-primary-600 rounded-[2.5rem] p-8 shadow-2xl shadow-primary-200 text-white flex flex-col justify-between relative overflow-hidden">
            <div className="relative z-10">
              <div className="flex justify-between items-start mb-4">
                 <div>
-                   <h3 className="font-bold text-[10px] uppercase tracking-widest opacity-70 mb-1">BB Saat Ini</h3>
+                   <h3 className="font-bold text-[10px] uppercase tracking-widest opacity-70 mb-1">BB Sekarang</h3>
                    <p className="text-3xl font-black">{user.weight}<span className="text-sm opacity-70 ml-1">kg</span></p>
                 </div>
                 <div className="text-right">
@@ -114,8 +123,6 @@ const Dashboard: React.FC<Props> = ({
            >
              Update BB Mingguan <ChevronRight className="w-4 h-4" />
            </button>
-           
-           <Target className="absolute -left-4 -bottom-4 w-24 h-24 text-white opacity-[0.05]" />
         </div>
       </div>
 
@@ -144,7 +151,6 @@ const Dashboard: React.FC<Props> = ({
         })}
       </div>
 
-      {/* Tab Switcher */}
       <div className="flex gap-2 mb-8">
         <button 
           onClick={() => setActiveTab('workout')}
@@ -160,7 +166,6 @@ const Dashboard: React.FC<Props> = ({
         </button>
       </div>
 
-      {/* Focus Area Banner */}
       <div className="mb-8 bg-indigo-50/50 rounded-3xl p-6 border border-indigo-100 flex gap-5 items-start">
         <div className="p-3 bg-indigo-100 rounded-2xl text-indigo-600">
           <Info className="w-6 h-6" />
@@ -171,7 +176,6 @@ const Dashboard: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Content Section */}
       <div className="transition-all duration-300">
         {activeTab === 'workout' && currentRoutine && (
           <div className="space-y-6 animate-slide-up">
