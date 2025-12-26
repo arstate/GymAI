@@ -1,3 +1,4 @@
+
 export enum Gender {
   MALE = 'Laki-laki',
   FEMALE = 'Perempuan'
@@ -8,7 +9,8 @@ export enum Goal {
   MUSCLE_BUILDING = 'Membentuk Otot (Bulking)',
   ABS = 'Membentuk Otot Perut',
   ENDURANCE = 'Meningkatkan Stamina',
-  GENERAL_HEALTH = 'Kesehatan Umum'
+  GENERAL_HEALTH = 'Kesehatan Umum',
+  CUSTOM = 'Lainnya (Ketik Manual)'
 }
 
 export enum Equipment {
@@ -31,7 +33,8 @@ export interface UserProfile {
   gender: Gender;
   height: number;
   weight: number;
-  goal: Goal;
+  targetWeight: number;
+  goal: Goal | string;
   equipment: Equipment[];
   dietBudget: DietBudget;
   medicalHistory: string;

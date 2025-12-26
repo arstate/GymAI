@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { UserProfile, Gender, Goal, Equipment, DietBudget } from '../types';
-import { Activity, Dumbbell, HeartPulse, User, ChevronRight, Check, DollarSign, Wallet, CreditCard } from 'lucide-react';
+import { Activity, Dumbbell, HeartPulse, User, ChevronRight, Check, DollarSign, Wallet, CreditCard, Target, Edit3 } from 'lucide-react';
 
 interface Props {
   onComplete: (profile: UserProfile) => void;
@@ -9,19 +10,25 @@ interface Props {
 
 const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
   const [step, setStep] = useState(1);
+  const [customGoal, setCustomGoal] = useState('');
   const [formData, setFormData] = useState<Partial<UserProfile>>({
     equipment: [],
     isSmoker: false,
     medicalHistory: '',
     healthCheckStatus: 'Sehat',
-    dietBudget: DietBudget.MEDIUM
+    dietBudget: DietBudget.MEDIUM,
+    goal: undefined
   });
 
   const handleNext = () => setStep(s => s + 1);
   const handleBack = () => setStep(s => s - 1);
 
   const handleSubmit = () => {
-    onComplete(formData as UserProfile);
+    const finalData = { ...formData };
+    if (formData.goal === Goal.CUSTOM) {
+      finalData.goal = customGoal || 'Tujuan Khusus';
+    }
+    onComplete(finalData as UserProfile);
   };
 
   const updateField = (field: keyof UserProfile, value: any) => {
@@ -47,7 +54,7 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold text-gray-800">
-            {step === 1 && "Data Diri"}
+            {step === 1 && "Data Diri & Target"}
             {step === 2 && "Tujuan Utama"}
             {step === 3 && "Peralatan Gym"}
             {step === 4 && "Budget Makanan"}
@@ -63,7 +70,7 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
         </div>
       </div>
 
-      <div className="min-h-[350px]">
+      <div className="min-h-[380px]">
         {step === 1 && (
           <div className="space-y-4 animate-fade-in">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -108,25 +115,37 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Tinggi (cm)</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Tinggi (cm)</label>
                 <input 
                   type="number" 
-                  className="w-full px-4 py-3 border border-gray-100 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition"
+                  className="w-full px-3 py-3 border border-gray-100 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition"
                   placeholder="170"
                   value={formData.height || ''}
                   onChange={e => updateField('height', parseInt(e.target.value))}
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Berat (kg)</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">BB Sekarang (kg)</label>
                 <input 
                   type="number" 
-                  className="w-full px-4 py-3 border border-gray-100 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition"
+                  className="w-full px-3 py-3 border border-gray-100 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition"
                   placeholder="65"
                   value={formData.weight || ''}
                   onChange={e => updateField('weight', parseInt(e.target.value))}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-primary-500 uppercase mb-2 flex items-center gap-1">
+                  <Target className="w-3 h-3" /> Target BB
+                </label>
+                <input 
+                  type="number" 
+                  className="w-full px-3 py-3 border border-primary-100 bg-primary-50 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition font-bold text-primary-700"
+                  placeholder="60"
+                  value={formData.targetWeight || ''}
+                  onChange={e => updateField('targetWeight', parseInt(e.target.value))}
                 />
               </div>
             </div>
@@ -136,16 +155,34 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
         {step === 2 && (
           <div className="space-y-3 animate-fade-in">
             <p className="text-gray-500 text-sm mb-4">Apa yang ingin Anda capai dalam waktu dekat?</p>
-            {Object.values(Goal).map((goal) => (
-              <button 
-                key={goal}
-                onClick={() => updateField('goal', goal)}
-                className={`w-full p-4 border-2 rounded-2xl flex items-center justify-between transition-all ${formData.goal === goal ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-50 bg-gray-50 text-gray-600 hover:border-gray-200'}`}
-              >
-                <span className="font-bold">{goal}</span>
-                {formData.goal === goal && <div className="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center"><Check className="w-4 h-4 text-white" /></div>}
-              </button>
-            ))}
+            <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2 no-scrollbar">
+              {Object.values(Goal).map((goal) => (
+                <button 
+                  key={goal}
+                  onClick={() => updateField('goal', goal)}
+                  className={`w-full p-4 border-2 rounded-2xl flex items-center justify-between transition-all ${formData.goal === goal ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-50 bg-gray-50 text-gray-600 hover:border-gray-200'}`}
+                >
+                  <span className="font-bold text-sm">{goal}</span>
+                  {formData.goal === goal && <div className="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center"><Check className="w-4 h-4 text-white" /></div>}
+                </button>
+              ))}
+            </div>
+            
+            {formData.goal === Goal.CUSTOM && (
+              <div className="mt-4 animate-slide-up">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2 flex items-center gap-2">
+                  <Edit3 className="w-3 h-3" /> Ketik Tujuan Anda Secara Spesifik
+                </label>
+                <input 
+                  type="text"
+                  className="w-full px-4 py-3 border-2 border-primary-200 bg-white rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition"
+                  placeholder="Contoh: Ingin bisa lari marathon 10km..."
+                  value={customGoal}
+                  onChange={e => setCustomGoal(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -259,7 +296,7 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
         {step < 5 ? (
           <button 
             onClick={handleNext}
-            disabled={step === 1 && (!formData.name || !formData.age || !formData.height || !formData.weight || !formData.gender)}
+            disabled={step === 1 && (!formData.name || !formData.age || !formData.height || !formData.weight || !formData.targetWeight || !formData.gender)}
             className="flex-1 py-4 bg-primary-600 text-white font-bold rounded-2xl hover:bg-primary-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
           >
             Lanjut <ChevronRight className="w-5 h-5" />

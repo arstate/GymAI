@@ -119,7 +119,9 @@ export const generateFitnessPlan = async (user: UserProfile, weekNumber: number 
       Buat rencana kebugaran & diet 7 hari yang sangat spesifik dan aman untuk user berikut:
       - Nama: ${user.name}, Umur: ${user.age} tahun
       - Jenis Kelamin: ${user.gender}
-      - TB/BB: ${user.height}cm / ${user.weight}kg
+      - Tinggi: ${user.height}cm
+      - BB Sekarang: ${user.weight}kg
+      - Target BB Akhir: ${user.targetWeight}kg (Penting: Sesuaikan kalori berdasarkan target ini)
       - Tujuan Utama: ${user.goal}
       - Peralatan Tersedia: ${user.equipment.join(', ')}
       - Budget Makan: ${user.dietBudget}
@@ -128,7 +130,11 @@ export const generateFitnessPlan = async (user: UserProfile, weekNumber: number 
       - Feedback Progres Minggu Lalu: ${lastFeedback ? JSON.stringify(lastFeedback) : 'Baru mulai program'}
       - Minggu Ke: ${weekNumber}
 
-      Instruksi: Menu diet HARUS sangat relevan dengan budget "${user.dietBudget}". Intensitas sesuai feedback.
+      Instruksi Khusus: 
+      1. Jika selisih BB sekarang dan target besar, buat defisit/surplus kalori yang aman. 
+      2. Menu diet HARUS sangat relevan dengan budget "${user.dietBudget}". 
+      3. Gunakan Bahasa Indonesia yang memotivasi.
+      
       Kembalikan respon dalam format JSON sesuai schema.
     `;
 
@@ -138,7 +144,6 @@ export const generateFitnessPlan = async (user: UserProfile, weekNumber: number 
       config: { 
         responseMimeType: "application/json", 
         responseSchema: fitnessPlanSchema,
-        // Menggunakan budget yang lebih kecil untuk Flash Lite agar tetap efisien
         thinkingConfig: { thinkingBudget: 2000 }
       }
     });
@@ -153,7 +158,8 @@ export const regenerateCheapDietPlan = async (user: UserProfile): Promise<DailyD
   return callGeminiWithRetry(async (ai) => {
     const prompt = `
       Buat ulang rencana makan 7 hari yang sangat optimal untuk budget ${user.dietBudget} untuk ${user.name}.
-      Tujuan: ${user.goal}. Gunakan istilah kuliner Indonesia yang umum.
+      Tujuan: ${user.goal}. BB Saat ini: ${user.weight}kg, Target: ${user.targetWeight}kg.
+      Gunakan istilah kuliner Indonesia yang umum.
       Format output: JSON array dari DailyDiet sesuai schema.
     `;
     

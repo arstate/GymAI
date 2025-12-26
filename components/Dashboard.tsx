@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { FitnessPlan, DailyRoutine, UserProfile } from '../types';
-import { Play, Utensils, Calendar, Clock, Award, Info, CheckCircle, ChevronRight, Moon, Flame, RefreshCw, DollarSign, Download, Settings } from 'lucide-react';
+import { Play, Utensils, Calendar, Clock, Award, Info, CheckCircle, ChevronRight, Moon, Flame, RefreshCw, DollarSign, Download, Settings, Target } from 'lucide-react';
 
 interface Props {
   plan: FitnessPlan;
@@ -35,6 +35,10 @@ const Dashboard: React.FC<Props> = ({
   const completedDaysCount = plan.routines.filter(r => r.isCompleted).length;
   const progressPercent = (completedDaysCount / 7) * 100;
 
+  // Hitung selisih berat badan
+  const weightDiff = user.targetWeight - user.weight;
+  const isWeightLoss = weightDiff < 0;
+
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 pb-32 animate-fade-in">
       {/* Header Profile Section */}
@@ -45,7 +49,7 @@ const Dashboard: React.FC<Props> = ({
           </div>
           <div>
             <h1 className="text-3xl font-black text-gray-900 tracking-tight">Halo, {user.name.split(' ')[0]}!</h1>
-            <p className="text-gray-400 font-medium">Minggu {plan.weekNumber} • {user.goal}</p>
+            <p className="text-gray-400 font-medium text-sm">Minggu {plan.weekNumber} • {user.goal}</p>
           </div>
         </div>
         
@@ -61,7 +65,7 @@ const Dashboard: React.FC<Props> = ({
         </div>
       </header>
 
-      {/* Progress Card */}
+      {/* Progress Card Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="md:col-span-2 bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 relative overflow-hidden">
           <div className="relative z-10">
@@ -80,17 +84,38 @@ const Dashboard: React.FC<Props> = ({
           <Flame className="absolute -right-10 -bottom-10 w-48 h-48 text-primary-50 opacity-[0.05] transform -rotate-12" />
         </div>
         
-        <div className="bg-primary-600 rounded-[2.5rem] p-8 shadow-2xl shadow-primary-200 text-white flex flex-col justify-between">
-           <div>
-             <h3 className="font-bold text-xs uppercase tracking-widest opacity-70 mb-2">Target BB</h3>
-             <p className="text-4xl font-black">{user.weight} <span className="text-lg opacity-70">kg</span></p>
+        {/* Updated Weight Card */}
+        <div className="bg-primary-600 rounded-[2.5rem] p-8 shadow-2xl shadow-primary-200 text-white flex flex-col justify-between relative overflow-hidden">
+           <div className="relative z-10">
+             <div className="flex justify-between items-start mb-4">
+                <div>
+                   <h3 className="font-bold text-[10px] uppercase tracking-widest opacity-70 mb-1">BB Saat Ini</h3>
+                   <p className="text-3xl font-black">{user.weight}<span className="text-sm opacity-70 ml-1">kg</span></p>
+                </div>
+                <div className="text-right">
+                   <h3 className="font-bold text-[10px] uppercase tracking-widest opacity-70 mb-1">Target BB</h3>
+                   <p className="text-3xl font-black text-primary-100">{user.targetWeight}<span className="text-sm opacity-70 ml-1">kg</span></p>
+                </div>
+             </div>
+             
+             <div className="flex items-center gap-2 bg-white/10 p-2 rounded-xl backdrop-blur-sm border border-white/5">
+                <div className={`p-1.5 rounded-lg ${isWeightLoss ? 'bg-orange-500' : 'bg-blue-500'}`}>
+                   <Target className="w-3 h-3 text-white" />
+                </div>
+                <span className="text-[10px] font-bold">
+                   Butuh {Math.abs(weightDiff)} kg lagi untuk {isWeightLoss ? 'turun' : 'naik'}
+                </span>
+             </div>
            </div>
+
            <button 
              onClick={onFinishWeek}
-             className="w-full mt-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-2xl text-sm font-bold transition flex items-center justify-center gap-2 backdrop-blur-md"
+             className="w-full mt-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 backdrop-blur-md relative z-10"
            >
-             Check-in Mingguan <ChevronRight className="w-4 h-4" />
+             Update BB Mingguan <ChevronRight className="w-4 h-4" />
            </button>
+           
+           <Target className="absolute -left-4 -bottom-4 w-24 h-24 text-white opacity-[0.05]" />
         </div>
       </div>
 
