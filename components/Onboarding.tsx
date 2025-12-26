@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { UserProfile, Gender, Goal, Equipment, DietBudget } from '../types';
-import { Activity, Dumbbell, HeartPulse, User, ChevronRight, Check, DollarSign, Wallet, CreditCard, Target, Edit3 } from 'lucide-react';
+import { Activity, Dumbbell, HeartPulse, User, ChevronRight, Check, DollarSign, Wallet, CreditCard, Target, Edit3, Ruler } from 'lucide-react';
 
 interface Props {
   onComplete: (profile: UserProfile) => void;
@@ -70,9 +70,9 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
         </div>
       </div>
 
-      <div className="min-h-[380px]">
+      <div className="min-h-[400px]">
         {step === 1 && (
-          <div className="space-y-4 animate-fade-in">
+          <div className="space-y-6 animate-fade-in">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Nama Lengkap</label>
@@ -92,6 +92,7 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
                 <input 
                   type="number" 
                   className="w-full px-4 py-3 border border-gray-100 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition"
+                  placeholder="Thn"
                   value={formData.age || ''}
                   onChange={e => updateField('age', parseInt(e.target.value))}
                 />
@@ -115,38 +116,43 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
               </button>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Tinggi (cm)</label>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-2 flex items-center gap-2">
+                  <Ruler className="w-4 h-4" /> Tinggi Badan (cm)
+                </label>
                 <input 
                   type="number" 
-                  className="w-full px-3 py-3 border border-gray-100 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition"
+                  className="w-full px-4 py-3 border border-gray-100 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition"
                   placeholder="170"
                   value={formData.height || ''}
                   onChange={e => updateField('height', parseInt(e.target.value))}
                 />
               </div>
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">BB Sekarang (kg)</label>
-                <input 
-                  type="number" 
-                  className="w-full px-3 py-3 border border-gray-100 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition"
-                  placeholder="65"
-                  value={formData.weight || ''}
-                  onChange={e => updateField('weight', parseInt(e.target.value))}
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-primary-500 uppercase mb-2 flex items-center gap-1">
-                  <Target className="w-3 h-3" /> Target BB
-                </label>
-                <input 
-                  type="number" 
-                  className="w-full px-3 py-3 border border-primary-100 bg-primary-50 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition font-bold text-primary-700"
-                  placeholder="60"
-                  value={formData.targetWeight || ''}
-                  onChange={e => updateField('targetWeight', parseInt(e.target.value))}
-                />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase mb-2">BB Sekarang (kg)</label>
+                  <input 
+                    type="number" 
+                    className="w-full px-4 py-3 border border-gray-100 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition"
+                    placeholder="79"
+                    value={formData.weight || ''}
+                    onChange={e => updateField('weight', parseInt(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-primary-500 uppercase mb-2 flex items-center gap-1">
+                    <Target className="w-3 h-3" /> Target Berat (kg)
+                  </label>
+                  <input 
+                    type="number" 
+                    className="w-full px-4 py-3 border-2 border-primary-200 bg-primary-50 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition font-bold text-primary-700"
+                    placeholder="70"
+                    value={formData.targetWeight || ''}
+                    onChange={e => updateField('targetWeight', parseInt(e.target.value))}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -154,8 +160,8 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
 
         {step === 2 && (
           <div className="space-y-3 animate-fade-in">
-            <p className="text-gray-500 text-sm mb-4">Apa yang ingin Anda capai dalam waktu dekat?</p>
-            <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2 no-scrollbar">
+            <p className="text-gray-500 text-sm mb-4">Pilih satu atau buat tujuan kustom Anda sendiri.</p>
+            <div className="grid grid-cols-1 gap-2 max-h-[280px] overflow-y-auto pr-2 no-scrollbar">
               {Object.values(Goal).map((goal) => (
                 <button 
                   key={goal}
@@ -170,13 +176,13 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
             
             {formData.goal === Goal.CUSTOM && (
               <div className="mt-4 animate-slide-up">
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2 flex items-center gap-2">
-                  <Edit3 className="w-3 h-3" /> Ketik Tujuan Anda Secara Spesifik
+                <label className="block text-xs font-bold text-primary-600 uppercase mb-2 flex items-center gap-2">
+                  <Edit3 className="w-4 h-4" /> Ketik Tujuan Khusus Anda
                 </label>
                 <input 
                   type="text"
-                  className="w-full px-4 py-3 border-2 border-primary-200 bg-white rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition"
-                  placeholder="Contoh: Ingin bisa lari marathon 10km..."
+                  className="w-full px-4 py-4 border-2 border-primary-300 bg-white rounded-2xl shadow-inner focus:ring-4 focus:ring-primary-100 outline-none transition"
+                  placeholder="Contoh: Turun 5kg dalam sebulan, Ingin Sixpack..."
                   value={customGoal}
                   onChange={e => setCustomGoal(e.target.value)}
                   autoFocus
@@ -206,7 +212,7 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
 
         {step === 4 && (
           <div className="space-y-4 animate-fade-in">
-            <p className="text-gray-500 text-sm mb-4">Pilih kategori biaya makanan yang paling sesuai dengan kantong Anda.</p>
+            <p className="text-gray-500 text-sm mb-4">Berapa budget harian Anda untuk makan sehat?</p>
             <div className="space-y-3">
               <button 
                 onClick={() => updateField('dietBudget', DietBudget.CHEAP)}
@@ -215,7 +221,7 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
                 <div className={`p-3 rounded-xl ${formData.dietBudget === DietBudget.CHEAP ? 'bg-primary-500 text-white' : 'bg-white text-gray-400'}`}><Wallet className="w-6 h-6" /></div>
                 <div className="text-left">
                    <h4 className={`font-bold ${formData.dietBudget === DietBudget.CHEAP ? 'text-primary-700' : 'text-gray-700'}`}>Hemat / Murah</h4>
-                   <p className="text-xs text-gray-400">Cocok untuk anak kos, menu Warteg, telur, tempe, tahu.</p>
+                   <p className="text-xs text-gray-400">Pilihan ekonomis: Telur, Tempe, Tahu, Sayur lokal.</p>
                 </div>
               </button>
               
@@ -226,7 +232,7 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
                 <div className={`p-3 rounded-xl ${formData.dietBudget === DietBudget.MEDIUM ? 'bg-primary-500 text-white' : 'bg-white text-gray-400'}`}><CreditCard className="w-6 h-6" /></div>
                 <div className="text-left">
                    <h4 className={`font-bold ${formData.dietBudget === DietBudget.MEDIUM ? 'text-primary-700' : 'text-gray-700'}`}>Sedang / Wajar</h4>
-                   <p className="text-xs text-gray-400">Menu rumahan sehat, dada ayam, buah-buahan lokal.</p>
+                   <p className="text-xs text-gray-400">Nutrisi lengkap: Dada ayam, Ikan, Buah musiman.</p>
                 </div>
               </button>
 
@@ -236,8 +242,8 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
               >
                 <div className={`p-3 rounded-xl ${formData.dietBudget === DietBudget.EXPENSIVE ? 'bg-primary-500 text-white' : 'bg-white text-gray-400'}`}><DollarSign className="w-6 h-6" /></div>
                 <div className="text-left">
-                   <h4 className={`font-bold ${formData.dietBudget === DietBudget.EXPENSIVE ? 'text-primary-700' : 'text-gray-700'}`}>Premium / Mewah</h4>
-                   <p className="text-xs text-gray-400">Fokus protein tinggi, daging sapi, salmon, sayur premium.</p>
+                   <h4 className={`font-bold ${formData.dietBudget === DietBudget.EXPENSIVE ? 'text-primary-700' : 'text-gray-700'}`}>Premium</h4>
+                   <p className="text-xs text-gray-400">Kualitas tinggi: Daging merah, Salmon, Salad premium.</p>
                 </div>
               </button>
             </div>
@@ -248,24 +254,13 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
           <div className="space-y-5 animate-fade-in">
             <div>
               <label className="block text-xs font-bold text-gray-400 uppercase mb-2 flex items-center gap-2">
-                <HeartPulse className="w-4 h-4 text-red-500" /> Riwayat Penyakit / Cedera
+                <HeartPulse className="w-4 h-4 text-red-500" /> Riwayat Medis (Opsional)
               </label>
               <textarea 
                 className="w-full px-4 py-3 border border-gray-100 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none h-24 resize-none transition"
-                placeholder="Contoh: Nyeri lutut kiri, asma, atau 'Tidak ada'."
+                placeholder="Ada cedera lama atau penyakit tertentu?"
                 value={formData.medicalHistory}
                 onChange={e => updateField('medicalHistory', e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Kondisi Tubuh Saat Ini</label>
-              <input 
-                type="text" 
-                className="w-full px-4 py-3 border border-gray-100 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition"
-                placeholder="Contoh: Sering lelah, Merasa sehat"
-                value={formData.healthCheckStatus}
-                onChange={e => updateField('healthCheckStatus', e.target.value)}
               />
             </div>
 
@@ -276,7 +271,7 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
               <div className={`w-6 h-6 rounded flex items-center justify-center border ${formData.isSmoker ? 'bg-orange-500 border-orange-500' : 'bg-white border-gray-300'}`}>
                 {formData.isSmoker && <Check className="w-4 h-4 text-white" />}
               </div>
-              <span className="font-medium">Saya merokok aktif</span>
+              <span className="font-medium text-sm">Saya seorang perokok aktif</span>
             </button>
           </div>
         )}
@@ -304,7 +299,7 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
         ) : (
           <button 
             onClick={handleSubmit}
-            disabled={isLoading}
+            disabled={isLoading || (formData.goal === Goal.CUSTOM && !customGoal)}
             className="flex-1 py-4 bg-primary-600 text-white font-bold rounded-2xl hover:bg-primary-700 transition shadow-xl shadow-primary-200 disabled:opacity-70 flex items-center justify-center gap-2"
           >
             {isLoading ? (
@@ -312,7 +307,7 @@ const Onboarding: React.FC<Props> = ({ onComplete, isLoading }) => {
                 <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
                 Menganalisa...
               </>
-            ) : "Selesaikan Profil"}
+            ) : "Buat Jadwal Saya"}
           </button>
         )}
       </div>
