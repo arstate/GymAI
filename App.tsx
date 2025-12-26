@@ -106,7 +106,9 @@ const App: React.FC = () => {
       saveToStorage(profile, plan);
       setView('DASHBOARD');
     } catch (err: any) {
-      setError(err.message || "Gagal menghasilkan rencana. Coba lagi.");
+      const msg = err.message || "Gagal menghasilkan rencana.";
+      setError(msg);
+      openAlert("Kesalahan API", msg);
     } finally {
       setIsLoading(false);
     }
@@ -124,7 +126,7 @@ const App: React.FC = () => {
       saveToStorage(updatedUser, newPlan);
       setView('DASHBOARD');
     } catch (err: any) {
-      openAlert("Gagal", "Tidak bisa membuat jadwal baru. Cek internet.");
+      openAlert("Gagal", err.message || "Tidak bisa membuat jadwal baru.");
     } finally {
       setIsLoading(false);
     }
@@ -145,7 +147,7 @@ const App: React.FC = () => {
           saveToStorage(userProfile, updatedPlan);
           openAlert("Berhasil!", "Menu makanan telah diperbarui menjadi lebih hemat.");
         } catch (err: any) {
-          openAlert("Gagal", "Gagal mengganti menu.");
+          openAlert("Gagal", err.message || "Gagal mengganti menu.");
         } finally {
           setIsRegeneratingDiet(false);
         }
@@ -192,11 +194,13 @@ const App: React.FC = () => {
             <p className="text-gray-400 font-medium">Personal AI Fitness Coach</p>
           </div>
           <Onboarding onComplete={handleOnboardingComplete} isLoading={isLoading} />
+          
           {error && (
-            <div className="max-w-lg mx-auto mt-6 p-4 bg-red-50 text-red-700 border border-red-100 rounded-2xl text-center text-sm font-bold">
-              {error}
+            <div className="max-w-lg mx-auto mt-6 p-4 bg-red-50 text-red-700 border border-red-100 rounded-2xl text-center text-xs font-bold shadow-sm">
+              ERROR: {error}
             </div>
           )}
+
           {installPrompt && (
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
               <button 

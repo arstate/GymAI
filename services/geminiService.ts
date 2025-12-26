@@ -1,26 +1,65 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { UserProfile, FitnessPlan, WeeklyFeedback, DailyDiet } from "../types";
 
+// Injected via vite.config.ts
 const API_KEYS: string[] = (process.env.API_KEYS as any) || [];
 let currentKeyIndex = 0;
 
 const getClient = () => {
-  if (API_KEYS.length === 0) throw new Error("Tidak ada API Key yang dikonfigurasi.");
+  if (API_KEYS.length === 0) throw new Error("Tidak ada API Key yang dikonfigurasi di system.");
   if (currentKeyIndex >= API_KEYS.length) currentKeyIndex = 0;
+  
+  console.log(`Menggunakan API Key index: ${currentKeyIndex}`);
   return new GoogleGenAI({ apiKey: API_KEYS[currentKeyIndex] });
 };
 
+/**
+ * Fungsi untuk memutar API Key jika terjadi error (seperti limit atau leaked)
+ */
 async function executeWithRotation<T>(operation: (ai: GoogleGenAI) => Promise<T>): Promise<T> {
   let lastError: any = null;
-  for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
+  const totalKeys = API_KEYS.length;
+
+  for (let attempt = 0; attempt < totalKeys; attempt++) {
     try {
-      return await operation(getClient());
+      const ai = getClient();
+      return await operation(ai);
     } catch (error: any) {
       lastError = error;
-      currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
+      console.error(`Gagal pada kunci ${currentKeyIndex}:`, error);
+      
+      // Pindah ke kunci berikutnya
+      currentKeyIndex = (currentKeyIndex + 1) % totalKeys;
+      
+      // Jika error adalah 403 Leaked atau 429 Limit, kita lanjut ke kunci berikutnya
+      // Jika sudah mencoba semua kunci, baru lempar error
+      if (attempt === totalKeys - 1) {
+        break;
+      }
     }
   }
-  throw new Error(lastError?.message || "Gagal menghubungi layanan AI.");
+
+  // Ekstraksi pesan error yang lebih bersih
+  let errorMsg = "Gagal menghubungi layanan AI setelah mencoba semua kunci.";
+  if (lastError) {
+    // Tangani error dari Google SDK yang seringkali berupa object atau stringified JSON
+    if (typeof lastError === 'string') {
+      errorMsg = lastError;
+    } else if (lastError.message) {
+      try {
+        const parsed = JSON.parse(lastError.message);
+        errorMsg = parsed?.error?.message || lastError.message;
+      } catch {
+        errorMsg = lastError.message;
+      }
+    }
+  }
+
+  if (errorMsg.includes("leaked")) {
+    errorMsg = "Semua API Key terdeteksi 'Bocor' (Leaked) oleh Google karena dibagikan di publik. Silakan gunakan API Key baru yang private.";
+  }
+
+  throw new Error(errorMsg);
 }
 
 const exerciseSchema: Schema = {
@@ -93,18 +132,13 @@ const fitnessPlanSchema: Schema = {
 };
 
 export const generateFitnessPlan = async (user: UserProfile, weekNumber: number = 1, lastFeedback?: WeeklyFeedback): Promise<FitnessPlan> => {
-  // Switch to Gemini 1.5 Flash Lite
   const model = "gemini-flash-lite-latest";
-  let contextPrompt = weekNumber > 1 ? `Feedback: ${lastFeedback?.difficultyRating}, Berat: ${lastFeedback?.currentWeight}kg.` : "Rencana Baru.";
-
   const prompt = `
     Pelatih Profesional. Buat rencana 7 hari.
     DATA: Nama ${user.name}, Goal ${user.goal}, Alat ${user.equipment.join(', ')}, Budget Makan: ${user.dietBudget}.
     
     PENTING:
-    - Jika Budget Makan adalah 'Murah', gunakan menu anak kos (tempe, tahu, telur, sayur pasar).
-    - Jika 'Sedang', gunakan menu rumahan seimbang.
-    - Jika 'Premium', gunakan protein tinggi (daging, salmon).
+    - Jika Budget Makan adalah 'Murah', gunakan menu sangat hemat/anak kos (tempe, tahu, telur).
     - Bahasa Indonesia, format JSON.
   `;
 
@@ -114,12 +148,12 @@ export const generateFitnessPlan = async (user: UserProfile, weekNumber: number 
       contents: prompt,
       config: { responseMimeType: "application/json", responseSchema: fitnessPlanSchema }
     });
-    return JSON.parse(response.text.trim().replace(/^```json/i, "").replace(/```$/i, "")) as FitnessPlan;
+    const text = response.text || "";
+    return JSON.parse(text.trim().replace(/^```json/i, "").replace(/```$/i, "")) as FitnessPlan;
   });
 };
 
 export const regenerateCheapDietPlan = async (user: UserProfile): Promise<DailyDiet[]> => {
-  // Switch to Gemini 1.5 Flash Lite
   const model = "gemini-flash-lite-latest";
   const prompt = `Buat ulang rencana makan 7 hari (Budget: MURAH/HEMAT) untuk ${user.name}. Gunakan bahan lokal sangat murah. Format JSON array.`;
   return executeWithRotation(async (ai) => {
@@ -128,6 +162,7 @@ export const regenerateCheapDietPlan = async (user: UserProfile): Promise<DailyD
       contents: prompt,
       config: { responseMimeType: "application/json", responseSchema: { type: Type.ARRAY, items: dailyDietSchema } }
     });
-    return JSON.parse(response.text.trim().replace(/^```json/i, "").replace(/```$/i, "")) as DailyDiet[];
+    const text = response.text || "";
+    return JSON.parse(text.trim().replace(/^```json/i, "").replace(/```$/i, "")) as DailyDiet[];
   });
 };
