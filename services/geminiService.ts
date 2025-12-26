@@ -2,7 +2,51 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { UserProfile, FitnessPlan, WeeklyFeedback, DailyDiet } from "../types";
 
-// Skema untuk latihan dalam rutinitas
+// Fungsi untuk mendapatkan daftar key dari environment
+const getApiKeys = (): string[] => {
+  const keys = process.env.API_KEY || "";
+  return keys.split(",").map(k => k.trim()).filter(Boolean);
+};
+
+// Variable untuk melacak key mana yang sedang digunakan (agar tidak mulai dari index 0 terus)
+let currentKeyIndex = 0;
+
+/**
+ * Wrapper untuk memanggil Gemini dengan dukungan Multi-Key Failover.
+ */
+async function callGeminiWithRetry<T>(
+  task: (ai: GoogleGenAI) => Promise<T>,
+  retries: number = 0
+): Promise<T> {
+  const keys = getApiKeys();
+  if (keys.length === 0) {
+    throw new Error("API_KEY tidak ditemukan di environment variable.");
+  }
+
+  // Gunakan modulo untuk tetap berada dalam jangkauan array keys
+  const keyToUse = keys[currentKeyIndex % keys.length];
+  const ai = new GoogleGenAI({ apiKey: keyToUse });
+
+  try {
+    return await task(ai);
+  } catch (error: any) {
+    const errorMsg = error?.message || "";
+    const isAuthError = errorMsg.includes("401") || errorMsg.includes("key") || errorMsg.includes("not found");
+    const isQuotaError = errorMsg.includes("429") || errorMsg.includes("quota");
+
+    // Jika error terkait key atau quota, dan kita masih punya key lain untuk dicoba
+    if ((isAuthError || isQuotaError) && retries < keys.length - 1) {
+      console.warn(`Key index ${currentKeyIndex % keys.length} bermasalah. Mencoba key cadangan...`);
+      currentKeyIndex++; // Pindah ke key berikutnya
+      return callGeminiWithRetry(task, retries + 1);
+    }
+    
+    // Jika semua key sudah dicoba atau error bukan terkait key
+    throw error;
+  }
+}
+
+// Schema definitions (tetap sama)
 const exerciseSchema = {
   type: Type.OBJECT,
   properties: {
@@ -17,7 +61,6 @@ const exerciseSchema = {
   required: ["name", "description", "sets", "restSeconds", "tips"]
 };
 
-// Skema untuk rutinitas harian
 const dailyRoutineSchema = {
   type: Type.OBJECT,
   properties: {
@@ -31,7 +74,6 @@ const dailyRoutineSchema = {
   required: ["dayNumber", "title", "focusArea", "isRestDay", "exercises", "estimatedDurationMin"]
 };
 
-// Skema untuk rincian makanan
 const mealSchema = {
   type: Type.OBJECT,
   properties: {
@@ -42,7 +84,6 @@ const mealSchema = {
   required: ["time", "menu", "calories"]
 };
 
-// Skema untuk diet harian
 const dailyDietSchema = {
   type: Type.OBJECT,
   properties: {
@@ -63,7 +104,6 @@ const dailyDietSchema = {
   required: ["dayNumber", "totalCalories", "meals"]
 };
 
-// Skema utama rencana kebugaran mingguan
 const fitnessPlanSchema = {
   type: Type.OBJECT,
   properties: {
@@ -76,72 +116,61 @@ const fitnessPlanSchema = {
   required: ["weekNumber", "overview", "routines", "diet", "createdAt"]
 };
 
-/**
- * Generates a fitness plan using Gemini API.
- * Follows guideline: Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
- */
 export const generateFitnessPlan = async (user: UserProfile, weekNumber: number = 1, lastFeedback?: WeeklyFeedback): Promise<FitnessPlan> => {
-  // Always create a new GoogleGenAI instance right before making an API call
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  return callGeminiWithRetry(async (ai) => {
+    const prompt = `
+      Bertindaklah sebagai Pelatih Kebugaran & Nutrisi AI Profesional (Elite Level).
+      Buat rencana kebugaran & diet 7 hari yang sangat spesifik dan aman untuk user berikut:
+      - Nama: ${user.name}, Umur: ${user.age} tahun
+      - Jenis Kelamin: ${user.gender}
+      - TB/BB: ${user.height}cm / ${user.weight}kg
+      - Tujuan Utama: ${user.goal}
+      - Peralatan Tersedia: ${user.equipment.join(', ')}
+      - Budget Makan: ${user.dietBudget}
+      - Riwayat Medis/Cedera: ${user.medicalHistory || 'Tidak ada'}
+      - Perokok: ${user.isSmoker ? 'Ya' : 'Tidak'}
+      - Feedback Progres Minggu Lalu: ${lastFeedback ? JSON.stringify(lastFeedback) : 'Baru mulai program'}
+      - Minggu Ke: ${weekNumber}
 
-  const prompt = `
-    Bertindaklah sebagai Pelatih Kebugaran AI Profesional.
-    Buat rencana kebugaran & diet 7 hari untuk user berikut:
-    - Nama: ${user.name}, Umur: ${user.age} tahun
-    - Tujuan: ${user.goal}
-    - Peralatan: ${user.equipment.join(', ')}
-    - Budget Makan: ${user.dietBudget}
-    - Riwayat Medis: ${user.medicalHistory || 'Tidak ada'}
-    - Perokok: ${user.isSmoker ? 'Ya' : 'Tidak'}
-    - Feedback Minggu Lalu: ${lastFeedback ? JSON.stringify(lastFeedback) : 'Baru mulai'}
-    - Minggu Ke: ${weekNumber}
+      Instruksi: Menu diet HARUS sangat relevan dengan budget "${user.dietBudget}". Intensitas sesuai feedback.
+      Kembalikan respon dalam format JSON sesuai schema.
+    `;
 
-    Kebutuhan:
-    1. Pastikan menu diet sesuai dengan budget yang dipilih.
-    2. Jika user memiliki riwayat medis, hindari gerakan yang berbahaya.
-    3. Gunakan Bahasa Indonesia yang ramah.
-    4. Kembalikan format JSON murni.
-  `;
-
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: prompt,
-    config: { 
-      responseMimeType: "application/json", 
-      responseSchema: fitnessPlanSchema 
-    }
+    const response = await ai.models.generateContent({
+      model: "gemini-3-pro-preview",
+      contents: prompt,
+      config: { 
+        responseMimeType: "application/json", 
+        responseSchema: fitnessPlanSchema,
+        thinkingConfig: { thinkingBudget: 4000 }
+      }
+    });
+    
+    const text = response.text;
+    if (!text) throw new Error("Gagal menerima respon dari AI.");
+    return JSON.parse(text.trim());
   });
-  
-  // Directly access .text property as per guidelines
-  const text = response.text;
-  if (!text) throw new Error("Gagal menerima respon dari AI.");
-  return JSON.parse(text.trim());
 };
 
-/**
- * Regenerates a cheap diet plan using Gemini API.
- */
 export const regenerateCheapDietPlan = async (user: UserProfile): Promise<DailyDiet[]> => {
-  // Always create a new GoogleGenAI instance right before making an API call
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-
-  const prompt = `
-    Buat ulang rencana makan 7 hari (Budget: HEMAT) untuk ${user.name} (Tujuan: ${user.goal}).
-    Fokus pada bahan lokal murah yang kaya protein seperti telur, tempe, tahu, dan dada ayam.
-    Format output: JSON array dari DailyDiet.
-  `;
-  
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: prompt,
-    config: { 
-      responseMimeType: "application/json", 
-      responseSchema: { type: Type.ARRAY, items: dailyDietSchema } 
-    }
+  return callGeminiWithRetry(async (ai) => {
+    const prompt = `
+      Buat ulang rencana makan 7 hari yang sangat optimal untuk budget ${user.dietBudget} untuk ${user.name}.
+      Tujuan: ${user.goal}. Gunakan istilah kuliner Indonesia yang umum.
+      Format output: JSON array dari DailyDiet sesuai schema.
+    `;
+    
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: { 
+        responseMimeType: "application/json", 
+        responseSchema: { type: Type.ARRAY, items: dailyDietSchema } 
+      }
+    });
+    
+    const text = response.text;
+    if (!text) throw new Error("Gagal menerima respon diet dari AI.");
+    return JSON.parse(text.trim());
   });
-  
-  // Directly access .text property as per guidelines
-  const text = response.text;
-  if (!text) throw new Error("Gagal menerima respon dari AI.");
-  return JSON.parse(text.trim());
 };

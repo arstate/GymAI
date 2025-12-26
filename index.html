@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="id">
   <head>
@@ -6,23 +7,38 @@
     <meta name="theme-color" content="#10b981" />
     <meta name="description" content="Aplikasi kebugaran dan diet berbasis AI Gemini yang dipersonalisasi untuk pengguna Indonesia.">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2964/2964514.png">
-    <title>FitGenius Indo - Personal AI Trainer</title>
+    <title>FitGenius ID - Personal AI Trainer</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Inter', 'sans-serif'],
+              sans: ['Plus Jakarta Sans', 'sans-serif'],
             },
             colors: {
               primary: {
-                50: '#ecfdf5',
-                100: '#d1fae5',
+                50: '#f0fdf4',
+                100: '#dcfce7',
                 500: '#10b981',
                 600: '#059669',
                 700: '#047857',
+              }
+            },
+            animation: {
+              'fade-in': 'fadeIn 0.5s ease-out',
+              'slide-up': 'slideUp 0.6s ease-out',
+              'spin-slow': 'spin 8s linear infinite',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
+              },
+              slideUp: {
+                '0%': { transform: 'translateY(20px)', opacity: '0' },
+                '100%': { transform: 'translateY(0)', opacity: '1' },
               }
             }
           }
@@ -31,7 +47,15 @@
     </script>
     <style>
       body {
-        background-color: #f8fafc;
+        background-color: #FBFBFB;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
       }
     </style>
   <script type="importmap">
@@ -51,7 +75,6 @@
 </head>
   <body>
     <div id="root"></div>
-    <!-- PENTING: Script ini wajib ada agar Vite bisa menjalankan aplikasi -->
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

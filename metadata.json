@@ -1,5 +1,7 @@
 {
-  "name": "FitGenius Indo",
-  "description": "Aplikasi kebugaran dan diet berbasis AI Gemini yang dipersonalisasi untuk pengguna Indonesia, dengan pelacakan latihan dan rencana diet.",
-  "requestFramePermissions": []
+  "name": "FitGenius ID",
+  "description": "Aplikasi kebugaran dan diet berbasis AI Gemini 3 yang dipersonalisasi untuk pengguna Indonesia, dengan pelacakan latihan dan rencana diet pintar.",
+  "requestFramePermissions": [
+    "camera"
+  ]
 }
