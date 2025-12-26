@@ -7,7 +7,7 @@ import WeeklyCheckin from './components/WeeklyCheckin';
 import CustomDialog from './components/CustomDialog';
 import { UserProfile, FitnessPlan, DailyRoutine, AppView, WeeklyFeedback } from './types';
 import { generateFitnessPlan, regenerateCheapDietPlan } from './services/geminiService';
-import { Key, ShieldCheck, ExternalLink, AlertTriangle } from 'lucide-react';
+import { Layers, AlertTriangle, ExternalLink } from 'lucide-react';
 
 const STORAGE_KEY = 'fitgenius_data_v3';
 
@@ -17,13 +17,13 @@ declare global {
     openSelectKey: () => Promise<void>;
   }
   interface Window {
-    // Fix: All declarations of 'aistudio' must have identical modifiers. Removing readonly to allow merging.
+    // Fixed: Removed readonly modifier to match existing global definitions and avoid TS error
     aistudio: AIStudio;
   }
 }
 
 const App: React.FC = () => {
-  const [view, setView] = useState<AppView | 'KEY_SETUP'>('ONBOARDING');
+  const [view, setView] = useState<AppView | 'KEY_SETUP' | 'LOADING'>('LOADING');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [fitnessPlan, setFitnessPlan] = useState<FitnessPlan | null>(null);
   const [activeRoutine, setActiveRoutine] = useState<DailyRoutine | null>(null);
@@ -47,9 +47,11 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const initializeApp = async () => {
-      // Cek apakah API_KEY ada di environment (Vercel)
-      const envKey = process.env.API_KEY;
-      
+      // 1. Cek apakah ada API_KEY di environment (Vercel)
+      // Simplified check for environment API key
+      const hasEnvKeys = !!process.env.API_KEY;
+
+      // 2. Load data lokal
       const savedData = localStorage.getItem(STORAGE_KEY);
       if (savedData) {
         try {
@@ -58,15 +60,19 @@ const App: React.FC = () => {
             setUserProfile(parsed.userProfile);
             setFitnessPlan(parsed.fitnessPlan);
             
-            // Jika tidak ada key di env, cek apakah ada key di selection sistem
-            if (!envKey) {
-              const keySelected = await window.aistudio.hasSelectedApiKey();
-              if (!keySelected) {
-                setView('KEY_SETUP');
-                return;
-              }
+            // Jika ada kunci di env, langsung ke Dashboard
+            if (hasEnvKeys) {
+              setView('DASHBOARD');
+              return;
             }
-            setView('DASHBOARD');
+
+            // Jika tidak ada di env, cek apakah user sudah pilih key secara manual sebelumnya
+            const keySelected = await window.aistudio.hasSelectedApiKey();
+            if (keySelected) {
+              setView('DASHBOARD');
+            } else {
+              setView('KEY_SETUP');
+            }
             return;
           }
         } catch (e) {
@@ -74,16 +80,16 @@ const App: React.FC = () => {
         }
       }
 
-      // Alur untuk user baru
-      if (!envKey) {
-        const keySelected = await window.aistudio.hasSelectedApiKey();
-        if (!keySelected) {
-          setView('KEY_SETUP');
-        } else {
-          setView('ONBOARDING');
-        }
-      } else {
+      // 3. Jika data baru
+      if (hasEnvKeys) {
         setView('ONBOARDING');
+      } else {
+        const keySelected = await window.aistudio.hasSelectedApiKey();
+        if (keySelected) {
+          setView('ONBOARDING');
+        } else {
+          setView('KEY_SETUP');
+        }
       }
     };
 
@@ -91,7 +97,9 @@ const App: React.FC = () => {
   }, []);
 
   const handleSelectKey = async () => {
+    // API Key Selection: Initiate the selection dialog
     await window.aistudio.openSelectKey();
+    // API Key Selection: Assume success and proceed to the app to avoid race conditions
     if (userProfile && fitnessPlan) setView('DASHBOARD');
     else setView('ONBOARDING');
   };
@@ -106,19 +114,6 @@ const App: React.FC = () => {
     });
   };
 
-  const openConfirm = (title: string, message: string, onConfirm: () => void) => {
-    setDialog({
-      isOpen: true,
-      type: 'confirm',
-      title,
-      message,
-      onConfirm: () => {
-        onConfirm();
-        setDialog(d => ({ ...d, isOpen: false }));
-      },
-    });
-  };
-
   const handleOnboardingComplete = async (profile: UserProfile) => {
     setIsLoading(true);
     setError(null);
@@ -129,22 +124,18 @@ const App: React.FC = () => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ userProfile: profile, fitnessPlan: plan }));
       setView('DASHBOARD');
     } catch (err: any) {
-      // Fix: Handle "Requested entity was not found" error by prompting for API key selection
-      if (err.message?.includes("Requested entity was not found")) {
-        await window.aistudio.openSelectKey();
-      } else if (err.message === "API_KEY_MISSING") {
-        setView('KEY_SETUP');
-      } else {
-        const msg = err.message || "Gagal menghasilkan rencana.";
-        setError(msg);
-        openAlert("Gagal Menghubungkan AI", "Environment Variable API_KEY mungkin tidak valid atau belum diredeploy di Vercel.");
+      const msg = err.message || "Gagal menghasilkan rencana.";
+      setError(msg);
+      // Reset key selection if entity not found error occurs as per guidelines
+      if (msg.includes("Requested entity was not found")) {
+         setView('KEY_SETUP');
       }
+      openAlert("Gagal Menghubungkan AI", `Terjadi kesalahan: ${msg}. Periksa API Key Anda.`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Fix: Added missing handleWeeklyFeedback function to process end-of-week updates
   const handleWeeklyFeedback = async (feedback: WeeklyFeedback) => {
     if (!userProfile) return;
     
@@ -161,63 +152,57 @@ const App: React.FC = () => {
       setView('DASHBOARD');
       openAlert("Berhasil!", `Rencana untuk Minggu ${nextWeek} telah siap.`);
     } catch (err: any) {
-      if (err.message?.includes("Requested entity was not found")) {
-        await window.aistudio.openSelectKey();
-      } else {
-        const msg = err.message || "Gagal membuat rencana minggu baru.";
-        setError(msg);
-        openAlert("Gagal", "Terjadi kesalahan saat membuat rencana baru.");
-      }
+      const msg = err.message || "Gagal membuat rencana minggu baru.";
+      setError(msg);
+      openAlert("Gagal", `Sistem AI error: ${msg}`);
     } finally {
       setIsLoading(false);
     }
   };
 
+  if (view === 'LOADING') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
   if (view === 'KEY_SETUP') {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 text-center">
         <div className="w-24 h-24 bg-white rounded-3xl shadow-xl flex items-center justify-center mb-6">
-          <Key className="w-12 h-12 text-primary-600" />
+          <Layers className="w-12 h-12 text-primary-600" />
         </div>
-        <h1 className="text-3xl font-black text-gray-900 mb-2">Setup API Key</h1>
-        <p className="text-gray-500 max-w-sm mb-8">
-          Kami tidak mendeteksi API Key di environment Vercel Anda.
+        <h1 className="text-3xl font-black text-gray-900 mb-2">Konfigurasi API Key</h1>
+        <p className="text-gray-500 max-w-sm mb-4">
+          Silakan pilih API Key untuk melanjutkan. Aplikasi ini memerlukan akses ke Gemini API.
         </p>
         
-        <div className="bg-orange-50 border border-orange-200 p-5 rounded-2xl mb-8 flex items-start gap-3 text-left max-w-md">
-          <AlertTriangle className="w-6 h-6 text-orange-600 flex-shrink-0" />
-          <div className="text-xs text-orange-800 space-y-2">
-            <p className="font-bold">Cara Memperbaiki via Vercel:</p>
-            <ol className="list-decimal ml-4 space-y-1">
-              <li>Masuk ke Vercel Dashboard {">"} Project Settings.</li>
-              <li>Pilih menu <b>Environment Variables</b>.</li>
-              <li>Tambah <b>Key:</b> <code className="bg-orange-200 px-1 px-1">API_KEY</code></li>
-              <li>Klik <b>Add</b> dan lakukan <b>Redeploy</b> proyek Anda.</li>
-            </ol>
+        {/* API Key Selection: Provided link to billing documentation */}
+        <a 
+          href="https://ai.google.dev/gemini-api/docs/billing" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-primary-600 text-sm font-bold flex items-center gap-1 mb-8 hover:underline"
+        >
+          Pelajari tentang penagihan API Key <ExternalLink className="w-4 h-4" />
+        </a>
+        
+        <div className="bg-blue-50 border border-blue-200 p-5 rounded-2xl mb-8 flex items-start gap-3 text-left max-w-md">
+          <AlertTriangle className="w-6 h-6 text-blue-600 flex-shrink-0" />
+          <div className="text-xs text-blue-800 space-y-2">
+            <p className="font-bold">Informasi Penting:</p>
+            <p>Anda harus menggunakan API Key dari proyek GCP yang sudah mengaktifkan penagihan (Paid Project).</p>
           </div>
         </div>
 
-        <div className="flex flex-col w-full max-w-sm gap-3">
-          <button 
-            onClick={() => window.location.reload()}
-            className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold hover:bg-gray-800 transition shadow-xl"
-          >
-            Sudah Setting? Refresh Aplikasi
-          </button>
-          
-          <div className="flex items-center gap-2 my-2">
-            <div className="h-px bg-gray-200 flex-1"></div>
-            <span className="text-[10px] text-gray-400 font-bold uppercase">Atau Gunakan Cara Cepat</span>
-            <div className="h-px bg-gray-200 flex-1"></div>
-          </div>
-
-          <button 
-            onClick={handleSelectKey}
-            className="w-full py-3 bg-white text-primary-600 border border-primary-100 rounded-2xl font-bold hover:bg-primary-50 transition"
-          >
-            Pilih API Key Manual
-          </button>
-        </div>
+        <button 
+          onClick={handleSelectKey}
+          className="w-full max-w-sm py-4 bg-primary-600 text-white rounded-2xl font-bold hover:bg-primary-700 transition shadow-xl shadow-primary-100"
+        >
+          Pilih API Key (Google AI Studio)
+        </button>
       </div>
     );
   }
@@ -242,8 +227,7 @@ const App: React.FC = () => {
           <Onboarding onComplete={handleOnboardingComplete} isLoading={isLoading} />
           {error && (
             <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-2xl text-center text-xs font-bold border border-red-100 max-w-lg mx-auto">
-              {error}
-              <p className="mt-1 font-normal opacity-70 italic">Cek Vercel Logs untuk detail lebih lanjut.</p>
+              Error: {error}
             </div>
           )}
         </div>
@@ -264,11 +248,7 @@ const App: React.FC = () => {
                setFitnessPlan(newPlan);
                localStorage.setItem(STORAGE_KEY, JSON.stringify({ userProfile, fitnessPlan: newPlan }));
              } catch(err: any) { 
-               if (err.message?.includes("Requested entity was not found")) {
-                 await window.aistudio.openSelectKey();
-               } else {
-                 openAlert("Gagal", "Gagal membuat menu baru."); 
-               }
+               openAlert("Gagal", `Gagal memperbarui menu: ${err.message}`); 
              }
              finally { setIsRegeneratingDiet(false); }
           }}

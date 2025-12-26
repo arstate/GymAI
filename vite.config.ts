@@ -1,3 +1,4 @@
+
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -33,9 +34,9 @@ export default defineConfig({
       }
     })
   ],
-  // Trik Utama: Memasukkan API_KEY dari environment Vercel ke dalam bundle aplikasi
   define: {
-    'process.env.API_KEY': JSON.stringify(process.env.API_KEY)
+    // Memastikan API_KEY dari environment tersedia untuk aplikasi
+    'process.env.API_KEY': JSON.stringify(process.env.API_KEY),
   },
   build: {
     outDir: 'dist',

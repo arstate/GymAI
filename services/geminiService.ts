@@ -2,18 +2,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { UserProfile, FitnessPlan, WeeklyFeedback, DailyDiet } from "../types";
 
-/**
- * Fungsi pembantu untuk membuat instance AI baru setiap kali dipanggil.
- * Ini memastikan aplikasi selalu menggunakan API_KEY yang aktif (baik dari env atau dialog).
- */
-const createClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("API_KEY_MISSING");
-  }
-  return new GoogleGenAI({ apiKey });
-};
-
 // Skema untuk latihan dalam rutinitas
 const exerciseSchema = {
   type: Type.OBJECT,
@@ -29,7 +17,7 @@ const exerciseSchema = {
   required: ["name", "description", "sets", "restSeconds", "tips"]
 };
 
-// Skema untuk rutinitas harian (Workout)
+// Skema untuk rutinitas harian
 const dailyRoutineSchema = {
   type: Type.OBJECT,
   properties: {
@@ -89,12 +77,13 @@ const fitnessPlanSchema = {
 };
 
 /**
- * Menghasilkan rencana kebugaran dan diet 7 hari yang dipersonalisasi.
+ * Generates a fitness plan using Gemini API.
+ * Follows guideline: Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
  */
 export const generateFitnessPlan = async (user: UserProfile, weekNumber: number = 1, lastFeedback?: WeeklyFeedback): Promise<FitnessPlan> => {
-  const ai = createClient();
-  // Menggunakan model Gemini 3 Flash untuk keseimbangan kecepatan dan kecerdasan dalam perencanaan
-  const model = "gemini-3-flash-preview";
+  // Always create a new GoogleGenAI instance right before making an API call
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+
   const prompt = `
     Bertindaklah sebagai Pelatih Kebugaran AI Profesional.
     Buat rencana kebugaran & diet 7 hari untuk user berikut:
@@ -110,12 +99,12 @@ export const generateFitnessPlan = async (user: UserProfile, weekNumber: number 
     Kebutuhan:
     1. Pastikan menu diet sesuai dengan budget yang dipilih.
     2. Jika user memiliki riwayat medis, hindari gerakan yang berbahaya.
-    3. Gunakan Bahasa Indonesia yang sangat ramah dan memotivasi.
-    4. Kembalikan data dalam format JSON murni sesuai schema.
+    3. Gunakan Bahasa Indonesia yang ramah.
+    4. Kembalikan format JSON murni.
   `;
 
   const response = await ai.models.generateContent({
-    model,
+    model: "gemini-3-flash-preview",
     contents: prompt,
     config: { 
       responseMimeType: "application/json", 
@@ -123,23 +112,27 @@ export const generateFitnessPlan = async (user: UserProfile, weekNumber: number 
     }
   });
   
-  return JSON.parse(response.text.trim());
+  // Directly access .text property as per guidelines
+  const text = response.text;
+  if (!text) throw new Error("Gagal menerima respon dari AI.");
+  return JSON.parse(text.trim());
 };
 
 /**
- * Menghasilkan ulang rencana makan khusus dengan budget hemat (local food focus).
+ * Regenerates a cheap diet plan using Gemini API.
  */
 export const regenerateCheapDietPlan = async (user: UserProfile): Promise<DailyDiet[]> => {
-  const ai = createClient();
-  const model = "gemini-3-flash-preview";
+  // Always create a new GoogleGenAI instance right before making an API call
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+
   const prompt = `
     Buat ulang rencana makan 7 hari (Budget: HEMAT) untuk ${user.name} (Tujuan: ${user.goal}).
-    Fokus pada bahan lokal murah yang kaya protein seperti telur, tempe, tahu, dan dada ayam jika memungkinkan.
+    Fokus pada bahan lokal murah yang kaya protein seperti telur, tempe, tahu, dan dada ayam.
     Format output: JSON array dari DailyDiet.
   `;
   
   const response = await ai.models.generateContent({
-    model,
+    model: "gemini-3-flash-preview",
     contents: prompt,
     config: { 
       responseMimeType: "application/json", 
@@ -147,5 +140,8 @@ export const regenerateCheapDietPlan = async (user: UserProfile): Promise<DailyD
     }
   });
   
-  return JSON.parse(response.text.trim());
+  // Directly access .text property as per guidelines
+  const text = response.text;
+  if (!text) throw new Error("Gagal menerima respon dari AI.");
+  return JSON.parse(text.trim());
 };
