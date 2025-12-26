@@ -1,8 +1,7 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { UserProfile, FitnessPlan, WeeklyFeedback, DailyDiet } from "../types";
+import { UserProfile, FitnessPlan, WeeklyFeedback, DailyDiet, DailyRoutine } from "../types";
 
-// Fungsi untuk mendapatkan daftar key dari environment dengan proteksi crash
 const getApiKeys = (): string[] => {
   try {
     const keys = (process.env.API_KEY || "").toString();
@@ -12,12 +11,8 @@ const getApiKeys = (): string[] => {
   }
 };
 
-// Variable untuk melacak key mana yang sedang digunakan
 let currentKeyIndex = 0;
 
-/**
- * Wrapper untuk memanggil Gemini dengan dukungan Multi-Key Failover.
- */
 async function callGeminiWithRetry<T>(
   task: (ai: GoogleGenAI) => Promise<T>,
   retries: number = 0
@@ -38,7 +33,6 @@ async function callGeminiWithRetry<T>(
     const isQuotaError = errorMsg.includes("429") || errorMsg.includes("quota");
 
     if ((isAuthError || isQuotaError) && retries < keys.length - 1) {
-      console.warn(`Key index ${currentKeyIndex % keys.length} bermasalah. Mencoba key cadangan...`);
       currentKeyIndex++;
       return callGeminiWithRetry(task, retries + 1);
     }
@@ -46,19 +40,19 @@ async function callGeminiWithRetry<T>(
   }
 }
 
-// Schema definitions
 const exerciseSchema = {
   type: Type.OBJECT,
   properties: {
     name: { type: Type.STRING },
     description: { type: Type.STRING },
+    imagePrompt: { type: Type.STRING, description: "Detailed description for a stickman illustration of this exercise" },
     durationSeconds: { type: Type.NUMBER },
     reps: { type: Type.NUMBER },
     sets: { type: Type.NUMBER },
     restSeconds: { type: Type.NUMBER },
     tips: { type: Type.STRING }
   },
-  required: ["name", "description", "sets", "restSeconds", "tips"]
+  required: ["name", "description", "imagePrompt", "sets", "restSeconds", "tips"]
 };
 
 const dailyRoutineSchema = {
@@ -122,24 +116,15 @@ export const generateFitnessPlan = async (user: UserProfile, weekNumber: number 
       Bertindaklah sebagai Pelatih Kebugaran & Nutrisi AI Profesional (Elite Level).
       Buat rencana kebugaran & diet 7 hari yang sangat spesifik dan aman untuk user berikut:
       - Nama: ${user.name}, Umur: ${user.age} tahun
-      - Jenis Kelamin: ${user.gender}
-      - Tinggi: ${user.height}cm
-      - BB Sekarang: ${user.weight}kg
-      - Target BB Akhir: ${user.targetWeight}kg
       - Laju Perubahan BB Target: ${user.weeklyTargetKg} kg per minggu
       - Tujuan Utama: ${user.goal}
       - Peralatan Tersedia: ${user.equipment.join(', ')}
-      - Budget Makan: ${user.dietBudget}
-      - Riwayat Medis/Cedera: ${user.medicalHistory || 'Tidak ada'}
-      - Perokok: ${user.isSmoker ? 'Ya' : 'Tidak'}
-      - Feedback Progres Minggu Lalu: ${lastFeedback ? JSON.stringify(lastFeedback) : 'Baru mulai program'}
       - Minggu Ke: ${weekNumber}
 
-      Instruksi Khusus: 
-      1. Sesuaikan intensitas latihan dan jumlah kalori harian agar mencapai target perubahan berat badan sebesar ${user.weeklyTargetKg} kg per minggu secara aman. 
-      2. Menu diet HARUS sangat relevan dengan budget "${user.dietBudget}". 
-      3. Gunakan Bahasa Indonesia yang memotivasi.
-      
+      Instruksi Latihan:
+      Untuk setiap gerakan latihan, buatlah 'imagePrompt' yang mendeskripsikan instruksi visual untuk ilustrasi stickman (stikmen).
+      Contoh: "A professional 2D stickman diagram of a push up, showing starting position and down position with arrows, clean vector lines, white background."
+
       Kembalikan respon dalam format JSON sesuai schema.
     `;
 
@@ -158,12 +143,35 @@ export const generateFitnessPlan = async (user: UserProfile, weekNumber: number 
   });
 };
 
+export const generateExerciseImage = async (exerciseName: string, imagePrompt: string): Promise<string> => {
+  return callGeminiWithRetry(async (ai) => {
+    const finalPrompt = `Create a clean, minimalist 2D stickman (stikmen) tutorial illustration for the exercise: "${exerciseName}". 
+    Visual style: ${imagePrompt}. 
+    Requirements: High contrast, black lines on pure white background, educational diagram style, professional, no text in image, clear motion arrows if needed.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: [{ text: finalPrompt }],
+      config: {
+        imageConfig: {
+          aspectRatio: "16:9"
+        }
+      }
+    });
+
+    for (const part of response.candidates[0].content.parts) {
+      if (part.inlineData) {
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      }
+    }
+    throw new Error("No image data found");
+  });
+};
+
 export const regenerateCheapDietPlan = async (user: UserProfile): Promise<DailyDiet[]> => {
   return callGeminiWithRetry(async (ai) => {
     const prompt = `
       Buat ulang rencana makan 7 hari yang sangat optimal untuk budget ${user.dietBudget} untuk ${user.name}.
-      Tujuan: ${user.goal}. BB Saat ini: ${user.weight}kg, Target BB Akhir: ${user.targetWeight}kg. 
-      Laju target perubahan: ${user.weeklyTargetKg} kg per minggu.
       Format output: JSON array dari DailyDiet sesuai schema.
     `;
     
@@ -179,5 +187,25 @@ export const regenerateCheapDietPlan = async (user: UserProfile): Promise<DailyD
     const text = response.text;
     if (!text) throw new Error("Gagal menerima respon diet dari AI.");
     return JSON.parse(text.trim());
+  });
+};
+
+export const askAiAssistant = async (
+  user: UserProfile, 
+  currentDiet: DailyDiet, 
+  currentRoutine: DailyRoutine,
+  userQuestion: string
+): Promise<string> => {
+  return callGeminiWithRetry(async (ai) => {
+    const prompt = `
+      Anda adalah asisten FitGenius ID. Jawab pertanyaan user "${userQuestion}" berdasarkan konteks diet dan latihan mereka hari ini.
+    `;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+    });
+
+    return response.text || "Maaf, saya sedang tidak bisa berpikir. Coba tanya lagi nanti ya.";
   });
 };

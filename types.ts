@@ -34,7 +34,7 @@ export interface UserProfile {
   height: number;
   weight: number;
   targetWeight: number;
-  weeklyTargetKg: number; // Tambahan: Target perubahan per minggu (misal: 0.5kg)
+  weeklyTargetKg: number;
   goal: Goal | string;
   equipment: Equipment[];
   dietBudget: DietBudget;
@@ -53,6 +53,7 @@ export interface WeeklyFeedback {
 export interface Exercise {
   name: string;
   description: string;
+  imagePrompt: string; // Deskripsi untuk AI menggambar stickman
   durationSeconds?: number;
   reps?: number;
   sets?: number;

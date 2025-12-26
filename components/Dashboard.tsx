@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { FitnessPlan, DailyRoutine, UserProfile } from '../types';
-import { Play, Utensils, Calendar, Clock, Award, Info, CheckCircle, ChevronRight, Moon, Flame, RefreshCw, DollarSign, Download, Settings, Target } from 'lucide-react';
+import AiAssistant from './AiAssistant';
+import { Play, Utensils, Calendar, Clock, Award, Info, CheckCircle, ChevronRight, Moon, Flame, RefreshCw, DollarSign, Download, Settings, Target, MessageCircle } from 'lucide-react';
 
 interface Props {
   plan: FitnessPlan;
@@ -27,6 +28,7 @@ const Dashboard: React.FC<Props> = ({
   onInstallApp
 }) => {
   const [activeTab, setActiveTab] = useState<'workout' | 'diet'>('workout');
+  const [showAiAssistant, setShowAiAssistant] = useState(false);
   
   // Menentukan hari default: Cari hari pertama yang isCompleted-nya false
   const getFirstIncompleteDay = () => {
@@ -51,7 +53,25 @@ const Dashboard: React.FC<Props> = ({
   const isWeightLoss = weightDiff < 0;
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-8 pb-32 animate-fade-in">
+    <div className="max-w-4xl mx-auto p-4 md:p-8 pb-32 animate-fade-in relative">
+      {/* AI Assistant Modal */}
+      {showAiAssistant && currentDiet && currentRoutine && (
+        <AiAssistant 
+          user={user}
+          currentDiet={currentDiet}
+          currentRoutine={currentRoutine}
+          onClose={() => setShowAiAssistant(false)}
+        />
+      )}
+
+      {/* Floating Action Button for AI - Mobile View */}
+      <button 
+        onClick={() => setShowAiAssistant(true)}
+        className="fixed bottom-24 right-4 z-50 p-4 bg-primary-600 text-white rounded-2xl shadow-2xl md:hidden animate-bounce hover:animate-none"
+      >
+        <MessageCircle className="w-6 h-6" />
+      </button>
+
       {/* Header Profile Section */}
       <header className="mb-6 md:mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div className="flex items-center gap-5">
@@ -65,6 +85,12 @@ const Dashboard: React.FC<Props> = ({
         </div>
         
         <div className="flex gap-2 self-end md:self-auto">
+          <button 
+            onClick={() => setShowAiAssistant(true)}
+            className="hidden md:flex items-center gap-2 px-4 py-3 bg-primary-50 text-primary-600 font-bold rounded-2xl hover:bg-primary-100 transition shadow-sm border border-primary-100"
+          >
+            <MessageCircle className="w-5 h-5" /> Tanya AI
+          </button>
           {installPrompt && (
             <button onClick={onInstallApp} className="p-2 md:p-3 bg-gray-900 text-white rounded-2xl hover:bg-gray-800 transition">
               <Download className="w-5 h-5" />
@@ -248,18 +274,26 @@ const Dashboard: React.FC<Props> = ({
                   </div>
                 </div>
 
-                <button 
-                  onClick={onRegenerateDiet}
-                  disabled={isRegeneratingDiet}
-                  className="w-full md:w-auto px-5 md:px-6 py-3 md:py-4 bg-orange-500 text-white rounded-xl md:rounded-2xl text-[10px] md:text-xs font-black hover:bg-orange-600 transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
-                >
-                  {isRegeneratingDiet ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <DollarSign className="w-4 h-4" />
-                  )}
-                  OPTIMALKAN MENU {user.dietBudget.split(' ')[0].toUpperCase()}
-                </button>
+                <div className="flex w-full md:w-auto gap-2">
+                  <button 
+                    onClick={() => setShowAiAssistant(true)}
+                    className="flex-1 md:flex-none px-4 py-3 md:py-4 bg-primary-100 text-primary-700 rounded-xl md:rounded-2xl text-[10px] md:text-xs font-black hover:bg-primary-200 transition-all flex items-center justify-center gap-2"
+                  >
+                    <MessageCircle className="w-4 h-4" /> KONSULTASI AI
+                  </button>
+                  <button 
+                    onClick={onRegenerateDiet}
+                    disabled={isRegeneratingDiet}
+                    className="flex-1 md:flex-none px-4 py-3 md:py-4 bg-orange-500 text-white rounded-xl md:rounded-2xl text-[10px] md:text-xs font-black hover:bg-orange-600 transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
+                  >
+                    {isRegeneratingDiet ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <DollarSign className="w-4 h-4" />
+                    )}
+                    RE-OPTIMALKAN
+                  </button>
+                </div>
              </div>
 
              <div className="flex flex-col gap-3 md:gap-4">
