@@ -3,10 +3,11 @@ import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
 import WorkoutSession from './components/WorkoutSession';
 import WeeklyCheckin from './components/WeeklyCheckin';
+import CustomDialog from './components/CustomDialog';
 import { UserProfile, FitnessPlan, DailyRoutine, AppView, WeeklyFeedback } from './types';
 import { generateFitnessPlan, regenerateCheapDietPlan } from './services/geminiService';
 
-const STORAGE_KEY = 'fitgenius_data_v2';
+const STORAGE_KEY = 'fitgenius_data_v3';
 
 const App: React.FC = () => {
   const [view, setView] = useState<AppView>('ONBOARDING');
@@ -17,11 +18,25 @@ const App: React.FC = () => {
   const [isRegeneratingDiet, setIsRegeneratingDiet] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // Custom Dialog State
+  const [dialog, setDialog] = useState<{
+    isOpen: boolean;
+    type: 'alert' | 'confirm';
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    type: 'alert',
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
   // PWA Install State
   const [installPrompt, setInstallPrompt] = useState<any>(null);
 
   useEffect(() => {
-    // Load local storage on mount
     const savedData = localStorage.getItem(STORAGE_KEY);
     if (savedData) {
       try {
@@ -32,33 +47,46 @@ const App: React.FC = () => {
           setView('DASHBOARD');
         }
       } catch (e) {
-        console.error("Failed to parse saved data");
         localStorage.removeItem(STORAGE_KEY);
       }
     }
 
-    // PWA Install Listener
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setInstallPrompt(e);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    };
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
+
+  const openAlert = (title: string, message: string) => {
+    setDialog({
+      isOpen: true,
+      type: 'alert',
+      title,
+      message,
+      onConfirm: () => setDialog(d => ({ ...d, isOpen: false })),
+    });
+  };
+
+  const openConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setDialog({
+      isOpen: true,
+      type: 'confirm',
+      title,
+      message,
+      onConfirm: () => {
+        onConfirm();
+        setDialog(d => ({ ...d, isOpen: false }));
+      },
+    });
+  };
 
   const handleInstallClick = () => {
     if (!installPrompt) return;
     installPrompt.prompt();
-    installPrompt.userChoice.then((choiceResult: any) => {
-      if (choiceResult.outcome === 'accepted') {
-        console.log('User accepted the install prompt');
-      }
-      setInstallPrompt(null);
-    });
+    installPrompt.userChoice.then(() => setInstallPrompt(null));
   };
 
   const saveToStorage = (profile: UserProfile, plan: FitnessPlan) => {
@@ -78,8 +106,7 @@ const App: React.FC = () => {
       saveToStorage(profile, plan);
       setView('DASHBOARD');
     } catch (err: any) {
-      console.error("App Error:", err);
-      setError(err.message || "Gagal menghasilkan rencana. Pastikan koneksi internet lancar dan coba lagi.");
+      setError(err.message || "Gagal menghasilkan rencana. Coba lagi.");
     } finally {
       setIsLoading(false);
     }
@@ -87,24 +114,17 @@ const App: React.FC = () => {
 
   const handleWeeklyFeedback = async (feedback: WeeklyFeedback) => {
     if (!userProfile || !fitnessPlan) return;
-    
     setIsLoading(true);
-    setError(null);
     try {
-      // Update local user weight for record keeping
       const updatedUser = { ...userProfile, weight: feedback.currentWeight };
       setUserProfile(updatedUser);
-
-      // Generate next week's plan
       const nextWeekNumber = fitnessPlan.weekNumber + 1;
       const newPlan = await generateFitnessPlan(updatedUser, nextWeekNumber, feedback);
-      
       setFitnessPlan(newPlan);
       saveToStorage(updatedUser, newPlan);
       setView('DASHBOARD');
     } catch (err: any) {
-      console.error("App Error:", err);
-      setError(err.message || "Gagal membuat jadwal minggu baru.");
+      openAlert("Gagal", "Tidak bisa membuat jadwal baru. Cek internet.");
     } finally {
       setIsLoading(false);
     }
@@ -113,107 +133,77 @@ const App: React.FC = () => {
   const handleRegenerateDiet = async () => {
     if (!userProfile || !fitnessPlan) return;
     
-    // Konfirmasi sebelum mengganti menu
-    if (!window.confirm("Apakah Anda yakin ingin mengganti menu saat ini dengan menu yang LEBIH MURAH & MUDAH? Menu yang lama akan hilang.")) {
-      return;
-    }
-
-    setIsRegeneratingDiet(true);
-    setError(null);
-    try {
-      const newDiet = await regenerateCheapDietPlan(userProfile);
-      
-      if (!newDiet || newDiet.length === 0) {
-        throw new Error("Gagal menerima data menu baru dari AI.");
+    openConfirm(
+      "Ganti Menu?", 
+      "Menu makanan saat ini akan diganti dengan opsi LEBIH MURAH. Lanjut?", 
+      async () => {
+        setIsRegeneratingDiet(true);
+        try {
+          const newDiet = await regenerateCheapDietPlan(userProfile);
+          const updatedPlan = { ...fitnessPlan, diet: newDiet };
+          setFitnessPlan(updatedPlan);
+          saveToStorage(userProfile, updatedPlan);
+          openAlert("Berhasil!", "Menu makanan telah diperbarui menjadi lebih hemat.");
+        } catch (err: any) {
+          openAlert("Gagal", "Gagal mengganti menu.");
+        } finally {
+          setIsRegeneratingDiet(false);
+        }
       }
-
-      const updatedPlan = {
-        ...fitnessPlan,
-        diet: newDiet
-      };
-
-      setFitnessPlan(updatedPlan);
-      saveToStorage(userProfile, updatedPlan);
-      alert("Berhasil! Menu makanan telah diganti dengan opsi yang lebih hemat.");
-    } catch (err: any) {
-      console.error("Regenerate Diet Error:", err);
-      alert("Gagal mengganti menu: " + (err.message || "Terjadi kesalahan koneksi."));
-    } finally {
-      setIsRegeneratingDiet(false);
-    }
-  };
-
-  const startWorkout = (routine: DailyRoutine) => {
-    setActiveRoutine(routine);
-    setView('WORKOUT_SESSION');
-  };
-
-  const handleWorkoutComplete = () => {
-    if (!fitnessPlan || !activeRoutine || !userProfile) return;
-
-    // Update the specific routine isCompleted status
-    const updatedRoutines = fitnessPlan.routines.map(routine => {
-      if (routine.dayNumber === activeRoutine.dayNumber) {
-        return { ...routine, isCompleted: true };
-      }
-      return routine;
-    });
-
-    const updatedPlan = { ...fitnessPlan, routines: updatedRoutines };
-    
-    setFitnessPlan(updatedPlan);
-    saveToStorage(userProfile, updatedPlan);
-    
-    setActiveRoutine(null);
-    setView('DASHBOARD');
-  };
-
-  const cancelWorkout = () => {
-    setActiveRoutine(null);
-    setView('DASHBOARD');
+    );
   };
 
   const handleFinishWeek = () => {
-    // NOTIFIKASI / KONFIRMASI AGAR TIDAK SALAH PENCET
-    const confirmMsg = `Apakah Anda yakin sudah menyelesaikan SELURUH latihan Minggu ${fitnessPlan?.weekNumber}?\n\nAnda akan lanjut ke evaluasi mingguan dan tidak bisa kembali ke jadwal minggu ini.`;
-    
-    if (window.confirm(confirmMsg)) {
-      setView('WEEKLY_CHECKIN');
-    }
+    openConfirm(
+      "Selesai Minggu Ini?", 
+      "Anda akan lanjut ke evaluasi mingguan. Pastikan semua latihan sudah selesai.", 
+      () => setView('WEEKLY_CHECKIN')
+    );
   };
 
   const handleReset = () => {
-    if (window.confirm("PERINGATAN KERAS: Apakah Anda yakin ingin MENGHAPUS SEMUA data profil dan rencana latihan? Tindakan ini tidak bisa dibatalkan.")) {
-      localStorage.removeItem(STORAGE_KEY);
-      setUserProfile(null);
-      setFitnessPlan(null);
-      setView('ONBOARDING');
-    }
+    openConfirm(
+      "Reset Aplikasi?", 
+      "Semua data profil dan progres latihan akan DIHAPUS PERMANEN.", 
+      () => {
+        localStorage.removeItem(STORAGE_KEY);
+        setUserProfile(null);
+        setFitnessPlan(null);
+        setView('ONBOARDING');
+      }
+    );
   };
 
   return (
     <div className="min-h-screen font-sans text-gray-900 bg-gray-50">
+      <CustomDialog 
+        isOpen={dialog.isOpen}
+        type={dialog.type}
+        title={dialog.title}
+        message={dialog.message}
+        onConfirm={dialog.onConfirm}
+        onCancel={() => setDialog(d => ({ ...d, isOpen: false }))}
+      />
+
       {view === 'ONBOARDING' && (
         <div className="min-h-screen flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-extrabold text-primary-600 mb-2">FitGenius ID</h1>
-            <p className="text-gray-500">Asisten Kebugaran AI Pribadi Anda</p>
+          <div className="text-center mb-4">
+            <h1 className="text-4xl font-black text-primary-600 tracking-tight">FitGenius ID</h1>
+            <p className="text-gray-400 font-medium">Personal AI Fitness Coach</p>
           </div>
           <Onboarding onComplete={handleOnboardingComplete} isLoading={isLoading} />
           {error && (
-            <div className="max-w-lg mx-auto mt-4 p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg text-center text-sm">
-              <p className="font-bold mb-1">Terjadi Kesalahan:</p>
+            <div className="max-w-lg mx-auto mt-6 p-4 bg-red-50 text-red-700 border border-red-100 rounded-2xl text-center text-sm font-bold">
               {error}
             </div>
           )}
-          {/* Install Button for Onboarding */}
           {installPrompt && (
-            <div className="fixed bottom-4 left-0 right-0 flex justify-center z-50 animate-fade-in">
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
               <button 
                 onClick={handleInstallClick}
-                className="bg-gray-900 text-white px-6 py-3 rounded-full shadow-xl font-bold flex items-center gap-2"
+                className="bg-gray-900 text-white px-8 py-3 rounded-full shadow-2xl font-bold flex items-center gap-2 hover:scale-105 transition"
               >
-                📲 Install Aplikasi
+                📲 Install App
               </button>
             </div>
           )}
@@ -224,7 +214,7 @@ const App: React.FC = () => {
         <Dashboard 
           plan={fitnessPlan} 
           user={userProfile} 
-          onStartWorkout={startWorkout}
+          onStartWorkout={(routine) => { setActiveRoutine(routine); setView('WORKOUT_SESSION'); }}
           onReset={handleReset}
           onFinishWeek={handleFinishWeek}
           onRegenerateDiet={handleRegenerateDiet}
@@ -245,8 +235,15 @@ const App: React.FC = () => {
       {view === 'WORKOUT_SESSION' && activeRoutine && (
         <WorkoutSession 
           routine={activeRoutine} 
-          onExit={cancelWorkout}
-          onComplete={handleWorkoutComplete}
+          onExit={() => { setActiveRoutine(null); setView('DASHBOARD'); }}
+          onComplete={() => {
+            const updatedRoutines = fitnessPlan!.routines.map(r => r.dayNumber === activeRoutine.dayNumber ? { ...r, isCompleted: true } : r);
+            const updatedPlan = { ...fitnessPlan!, routines: updatedRoutines };
+            setFitnessPlan(updatedPlan);
+            saveToStorage(userProfile!, updatedPlan);
+            setActiveRoutine(null);
+            setView('DASHBOARD');
+          }}
         />
       )}
     </div>

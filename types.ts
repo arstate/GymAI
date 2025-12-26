@@ -19,14 +19,21 @@ export enum Equipment {
   TREADMILL = 'Treadmill'
 }
 
+export enum DietBudget {
+  CHEAP = 'Murah (Hemat/Anak Kos)',
+  MEDIUM = 'Sedang (Wajar/Seimbang)',
+  EXPENSIVE = 'Mahal (Premium/High Protein)'
+}
+
 export interface UserProfile {
   name: string;
   age: number;
   gender: Gender;
-  height: number; // cm
-  weight: number; // kg
+  height: number;
+  weight: number;
   goal: Goal;
   equipment: Equipment[];
+  dietBudget: DietBudget;
   medicalHistory: string;
   isSmoker: boolean;
   healthCheckStatus: string;
@@ -36,7 +43,7 @@ export interface WeeklyFeedback {
   weekCompleted: number;
   currentWeight: number;
   difficultyRating: 'Too Easy' | 'Just Right' | 'Too Hard';
-  notes: string; // Cedera baru atau keluhan
+  notes: string;
 }
 
 export interface Exercise {
@@ -50,23 +57,23 @@ export interface Exercise {
 }
 
 export interface DailyRoutine {
-  dayNumber: number; // 1 - 7
-  title: string; // e.g., "Leg Day" or "Rest Day"
+  dayNumber: number;
+  title: string;
   focusArea: string;
   isRestDay: boolean;
-  exercises: Exercise[]; // Empty if rest day
+  exercises: Exercise[];
   estimatedDurationMin: number;
   isCompleted?: boolean;
 }
 
 export interface Meal {
-  time: string; // e.g., "07:00"
+  time: string;
   menu: string;
   calories: number;
 }
 
 export interface DailyDiet {
-  dayNumber: number; // 1 - 7
+  dayNumber: number;
   totalCalories: number;
   meals: {
     breakfast: Meal;
@@ -80,8 +87,8 @@ export interface DailyDiet {
 export interface FitnessPlan {
   weekNumber: number;
   overview: string;
-  routines: DailyRoutine[]; // Array of 7 days
-  diet: DailyDiet[]; // Array of 7 days
+  routines: DailyRoutine[];
+  diet: DailyDiet[];
   createdAt: string;
 }
 
