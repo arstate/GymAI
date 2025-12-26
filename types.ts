@@ -34,7 +34,7 @@ export interface UserProfile {
   height: number;
   weight: number;
   targetWeight: number;
-  weeklyTargetKg: number;
+  weeklyTargetKg: number; // Tambahan: Target perubahan per minggu (misal: 0.5kg)
   goal: Goal | string;
   equipment: Equipment[];
   dietBudget: DietBudget;
@@ -53,8 +53,6 @@ export interface WeeklyFeedback {
 export interface Exercise {
   name: string;
   description: string;
-  imagePrompt: string; 
-  imageUrl?: string; // Menyimpan data base64 gambar stikmen secara permanen
   durationSeconds?: number;
   reps?: number;
   sets?: number;

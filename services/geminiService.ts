@@ -1,7 +1,8 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { UserProfile, FitnessPlan, WeeklyFeedback, DailyDiet, DailyRoutine, Exercise } from "../types";
+import { UserProfile, FitnessPlan, WeeklyFeedback, DailyDiet, DailyRoutine } from "../types";
 
+// Fungsi untuk mendapatkan daftar key dari environment dengan proteksi crash
 const getApiKeys = (): string[] => {
   try {
     const keys = (process.env.API_KEY || "").toString();
@@ -11,15 +12,19 @@ const getApiKeys = (): string[] => {
   }
 };
 
+// Variable untuk melacak key mana yang sedang digunakan
 let currentKeyIndex = 0;
 
+/**
+ * Wrapper untuk memanggil Gemini dengan dukungan Multi-Key Failover.
+ */
 async function callGeminiWithRetry<T>(
   task: (ai: GoogleGenAI) => Promise<T>,
   retries: number = 0
 ): Promise<T> {
   const keys = getApiKeys();
   if (keys.length === 0) {
-    throw new Error("API_KEY tidak ditemukan.");
+    throw new Error("API_KEY tidak ditemukan. Harap atur API_KEY di Environment Variables Vercel.");
   }
 
   const keyToUse = keys[currentKeyIndex % keys.length];
@@ -29,7 +34,11 @@ async function callGeminiWithRetry<T>(
     return await task(ai);
   } catch (error: any) {
     const errorMsg = error?.message || "";
-    if ((errorMsg.includes("401") || errorMsg.includes("429")) && retries < keys.length - 1) {
+    const isAuthError = errorMsg.includes("401") || errorMsg.includes("key") || errorMsg.includes("not found");
+    const isQuotaError = errorMsg.includes("429") || errorMsg.includes("quota");
+
+    if ((isAuthError || isQuotaError) && retries < keys.length - 1) {
+      console.warn(`Key index ${currentKeyIndex % keys.length} bermasalah. Mencoba key cadangan...`);
       currentKeyIndex++;
       return callGeminiWithRetry(task, retries + 1);
     }
@@ -37,19 +46,19 @@ async function callGeminiWithRetry<T>(
   }
 }
 
+// Schema definitions
 const exerciseSchema = {
   type: Type.OBJECT,
   properties: {
     name: { type: Type.STRING },
     description: { type: Type.STRING },
-    imagePrompt: { type: Type.STRING, description: "Prompt visual untuk stikmen gerakan ini" },
     durationSeconds: { type: Type.NUMBER },
     reps: { type: Type.NUMBER },
     sets: { type: Type.NUMBER },
     restSeconds: { type: Type.NUMBER },
     tips: { type: Type.STRING }
   },
-  required: ["name", "description", "imagePrompt", "sets", "restSeconds", "tips"]
+  required: ["name", "description", "sets", "restSeconds", "tips"]
 };
 
 const dailyRoutineSchema = {
@@ -107,49 +116,31 @@ const fitnessPlanSchema = {
   required: ["weekNumber", "overview", "routines", "diet", "createdAt"]
 };
 
-/**
- * Fungsi internal untuk generate gambar tutorial stikmen
- */
-const generateExerciseImage = async (exerciseName: string, imagePrompt: string): Promise<string> => {
+export const generateFitnessPlan = async (user: UserProfile, weekNumber: number = 1, lastFeedback?: WeeklyFeedback): Promise<FitnessPlan> => {
   return callGeminiWithRetry(async (ai) => {
-    const finalPrompt = `Diagram tutorial stikmen 2D minimalis untuk latihan: "${exerciseName}". 
-    Deskripsi gerakan: ${imagePrompt}. 
-    Gaya: Garis hitam tebal di atas latar belakang putih bersih, diagram edukasi profesional, berikan panah arah gerakan, tanpa teks di dalam gambar.`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: [{ text: finalPrompt }],
-      config: {
-        imageConfig: { aspectRatio: "16:9" }
-      }
-    });
-
-    for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData) {
-        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-      }
-    }
-    throw new Error("Gagal generate gambar");
-  });
-};
-
-/**
- * Generate Fitness Plan LENGKAP dengan semua gambar tutorial di awal
- */
-export const generateFitnessPlan = async (
-  user: UserProfile, 
-  weekNumber: number = 1, 
-  lastFeedback?: WeeklyFeedback, 
-  onProgress?: (msg: string) => void
-): Promise<FitnessPlan> => {
-  // 1. Generate Struktur Teks
-  onProgress?.("Sedang menyusun rencana latihan & nutrisi pintarmu...");
-  const plan: FitnessPlan = await callGeminiWithRetry(async (ai) => {
     const prompt = `
-      Bertindaklah sebagai Pelatih Elite Kebugaran FitGenius ID. 
-      Buat jadwal 7 hari untuk ${user.name} (Tujuan: ${user.goal}, Budget Makan: ${user.dietBudget}).
-      Sertakan imagePrompt yang sangat detail untuk setiap latihan agar bisa digambar sebagai stikmen tutorial.
-      Format: JSON sesuai schema. Gunakan Bahasa Indonesia.
+      Bertindaklah sebagai Pelatih Kebugaran & Nutrisi AI Profesional (Elite Level).
+      Buat rencana kebugaran & diet 7 hari yang sangat spesifik dan aman untuk user berikut:
+      - Nama: ${user.name}, Umur: ${user.age} tahun
+      - Jenis Kelamin: ${user.gender}
+      - Tinggi: ${user.height}cm
+      - BB Sekarang: ${user.weight}kg
+      - Target BB Akhir: ${user.targetWeight}kg
+      - Laju Perubahan BB Target: ${user.weeklyTargetKg} kg per minggu
+      - Tujuan Utama: ${user.goal}
+      - Peralatan Tersedia: ${user.equipment.join(', ')}
+      - Budget Makan: ${user.dietBudget}
+      - Riwayat Medis/Cedera: ${user.medicalHistory || 'Tidak ada'}
+      - Perokok: ${user.isSmoker ? 'Ya' : 'Tidak'}
+      - Feedback Progres Minggu Lalu: ${lastFeedback ? JSON.stringify(lastFeedback) : 'Baru mulai program'}
+      - Minggu Ke: ${weekNumber}
+
+      Instruksi Khusus: 
+      1. Sesuaikan intensitas latihan dan jumlah kalori harian agar mencapai target perubahan berat badan sebesar ${user.weeklyTargetKg} kg per minggu secara aman. 
+      2. Menu diet HARUS sangat relevan dengan budget "${user.dietBudget}". 
+      3. Gunakan Bahasa Indonesia yang memotivasi.
+      
+      Kembalikan respon dalam format JSON sesuai schema.
     `;
 
     const response = await ai.models.generateContent({
@@ -161,46 +152,21 @@ export const generateFitnessPlan = async (
       }
     });
     
-    return JSON.parse(response.text?.trim() || "{}");
+    const text = response.text;
+    if (!text) throw new Error("Gagal menerima respon dari AI.");
+    return JSON.parse(text.trim());
   });
-
-  // 2. Batch Generate Gambar (Agar tidak realtime saat user memakai aplikasi)
-  onProgress?.("Sedang menggambar tutorial stikmen untuk semua latihan...");
-  
-  const uniqueExerciseMap = new Map<string, Exercise>();
-  plan.routines.forEach(r => {
-    if (!r.isRestDay) r.exercises.forEach(ex => uniqueExerciseMap.set(ex.name, ex));
-  });
-
-  const exercises = Array.from(uniqueExerciseMap.values());
-  const imageDataMap = new Map<string, string>();
-
-  for (let i = 0; i < exercises.length; i++) {
-    const ex = exercises[i];
-    onProgress?.(`Menggambar tutorial: ${ex.name} (${i+1}/${exercises.length})`);
-    try {
-      const b64Image = await generateExerciseImage(ex.name, ex.imagePrompt);
-      imageDataMap.set(ex.name, b64Image);
-    } catch (e) {
-      console.error(`Gagal menggambar ${ex.name}`, e);
-    }
-  }
-
-  // 3. Masukkan gambar ke plan
-  plan.routines.forEach(r => {
-    if (!r.isRestDay) {
-      r.exercises.forEach(ex => {
-        ex.imageUrl = imageDataMap.get(ex.name);
-      });
-    }
-  });
-
-  return plan;
 };
 
 export const regenerateCheapDietPlan = async (user: UserProfile): Promise<DailyDiet[]> => {
   return callGeminiWithRetry(async (ai) => {
-    const prompt = `Buat ulang rencana makan 7 hari optimal untuk budget ${user.dietBudget}. JSON array.`;
+    const prompt = `
+      Buat ulang rencana makan 7 hari yang sangat optimal untuk budget ${user.dietBudget} untuk ${user.name}.
+      Tujuan: ${user.goal}. BB Saat ini: ${user.weight}kg, Target BB Akhir: ${user.targetWeight}kg. 
+      Laju target perubahan: ${user.weeklyTargetKg} kg per minggu.
+      Format output: JSON array dari DailyDiet sesuai schema.
+    `;
+    
     const response = await ai.models.generateContent({
       model: "gemini-flash-lite-latest",
       contents: prompt,
@@ -209,37 +175,45 @@ export const regenerateCheapDietPlan = async (user: UserProfile): Promise<DailyD
         responseSchema: { type: Type.ARRAY, items: dailyDietSchema } 
       }
     });
-    return JSON.parse(response.text?.trim() || "[]");
+    
+    const text = response.text;
+    if (!text) throw new Error("Gagal menerima respon diet dari AI.");
+    return JSON.parse(text.trim());
   });
 };
 
 export const askAiAssistant = async (
   user: UserProfile, 
   currentDiet: DailyDiet, 
-  currentRoutine: DailyRoutine, 
+  currentRoutine: DailyRoutine,
   userQuestion: string
 ): Promise<string> => {
   return callGeminiWithRetry(async (ai) => {
     const prompt = `
-      Anda adalah Pelatih AI FitGenius ID. 
-      Tugas: Menjawab pertanyaan atau keluhan user tentang diet/latihan hari ini.
+      Anda adalah asisten FitGenius ID. Tugas Anda adalah menjawab pertanyaan user terkait diet dan latihan mereka hari ini.
       
-      Konteks User: ${user.name}, Tujuan: ${user.goal}.
-      Rencana Makan Hari Ini: ${JSON.stringify(currentDiet.meals)}
-      Latihan Hari Ini: ${currentRoutine.title}
+      Konteks User:
+      - Nama: ${user.name}, Tujuan: ${user.goal}, Target BB: ${user.targetWeight}kg.
       
-      User bertanya: "${userQuestion}"
+      Rencana Hari Ini:
+      - Nutrisi: ${JSON.stringify(currentDiet.meals)}
+      - Latihan: ${currentRoutine.title} (${currentRoutine.focusArea})
       
-      Aturan Jawaban:
-      1. Jika user melakukan kesalahan (misal: makan mi instan, gorengan, dsb), JANGAN MENGHAKIMI. Berikan solusi kompensasi yang logis (misal: tambah aktivitas fisik, kurangi porsi karbo nanti, atau minum lebih banyak air).
-      2. Jika bertanya tentang minuman (kopi, teh, dsb), jelaskan pengaruhnya ke tujuan fitness.
-      3. Singkat, padat, memotivasi, dan gunakan Bahasa Indonesia yang gaul tapi profesional.
+      Pertanyaan/Masalah User:
+      "${userQuestion}"
+      
+      Instruksi Jawaban:
+      1. Jawab dengan singkat, ramah, dan solutif (Bahasa Indonesia).
+      2. Jika user membuat kesalahan (misal: makan junk food), berikan saran kompensasi yang logis (misal: kurangi porsi karbo di makan malam atau tambah jalan kaki).
+      3. Jika user bertanya tentang hal umum (misal: boleh minum kopi), berikan penjelasan dampaknya terhadap tujuan fitness mereka.
+      4. Jangan menghakimi, tetap berikan motivasi.
     `;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
     });
-    return response.text || "Aduh, otak pelatih lagi nge-blank. Tanya lagi ya!";
+
+    return response.text || "Maaf, saya sedang tidak bisa berpikir. Coba tanya lagi nanti ya.";
   });
 };
