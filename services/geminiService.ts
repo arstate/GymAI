@@ -8,7 +8,7 @@ const getApiKeys = (): string[] => {
   return keys.split(",").map(k => k.trim()).filter(Boolean);
 };
 
-// Variable untuk melacak key mana yang sedang digunakan (agar tidak mulai dari index 0 terus)
+// Variable untuk melacak key mana yang sedang digunakan
 let currentKeyIndex = 0;
 
 /**
@@ -23,7 +23,6 @@ async function callGeminiWithRetry<T>(
     throw new Error("API_KEY tidak ditemukan di environment variable.");
   }
 
-  // Gunakan modulo untuk tetap berada dalam jangkauan array keys
   const keyToUse = keys[currentKeyIndex % keys.length];
   const ai = new GoogleGenAI({ apiKey: keyToUse });
 
@@ -34,19 +33,16 @@ async function callGeminiWithRetry<T>(
     const isAuthError = errorMsg.includes("401") || errorMsg.includes("key") || errorMsg.includes("not found");
     const isQuotaError = errorMsg.includes("429") || errorMsg.includes("quota");
 
-    // Jika error terkait key atau quota, dan kita masih punya key lain untuk dicoba
     if ((isAuthError || isQuotaError) && retries < keys.length - 1) {
       console.warn(`Key index ${currentKeyIndex % keys.length} bermasalah. Mencoba key cadangan...`);
-      currentKeyIndex++; // Pindah ke key berikutnya
+      currentKeyIndex++;
       return callGeminiWithRetry(task, retries + 1);
     }
-    
-    // Jika semua key sudah dicoba atau error bukan terkait key
     throw error;
   }
 }
 
-// Schema definitions (tetap sama)
+// Schema definitions
 const exerciseSchema = {
   type: Type.OBJECT,
   properties: {
@@ -137,12 +133,13 @@ export const generateFitnessPlan = async (user: UserProfile, weekNumber: number 
     `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-flash-lite-latest",
       contents: prompt,
       config: { 
         responseMimeType: "application/json", 
         responseSchema: fitnessPlanSchema,
-        thinkingConfig: { thinkingBudget: 4000 }
+        // Menggunakan budget yang lebih kecil untuk Flash Lite agar tetap efisien
+        thinkingConfig: { thinkingBudget: 2000 }
       }
     });
     
@@ -161,7 +158,7 @@ export const regenerateCheapDietPlan = async (user: UserProfile): Promise<DailyD
     `;
     
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-flash-lite-latest",
       contents: prompt,
       config: { 
         responseMimeType: "application/json", 
